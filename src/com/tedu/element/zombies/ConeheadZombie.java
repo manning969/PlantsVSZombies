@@ -43,7 +43,7 @@ public class ConeheadZombie extends Zombie {
         this.dieAnimationDuration = DEFAULT_DIE_ANIMATION_DURATION + 200;
         
         // 设置死亡动画的额外宽度 - 路障僵尸死亡动画更宽一些
-        this.dieAnimationExtraWidth = 70; // 比普通僵尸更宽
+        this.dieAnimationExtraWidth = 50; // 比普通僵尸更宽
         // 可选：设置X轴偏移，让动画居中显示
         this.dieAnimationXOffset = -25; // 向左偏移25像素来居中
         
