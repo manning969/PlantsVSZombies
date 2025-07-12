@@ -34,6 +34,9 @@ public class GameConfig {
     public static final int PROJECTILE_WIDTH = 20;
     public static final int PROJECTILE_HEIGHT = 20;
     public static final int PROJECTILE_SPEED = 2;
+    
+    // 伤害配置
+    public static final int PEA_DAMAGE = 20;        // 豌豆射手的豌豆伤害
 
     // 阳光设置
     public static final int SUN_WIDTH = 40;
@@ -42,10 +45,9 @@ public class GameConfig {
     public static final int INITIAL_SUN = 150;       // 初始阳光数量
 
     // 阳光相关配置
-    // 注意：NATURAL_SUN_INTERVAL 和 SUNFLOWER_PRODUCE_INTERVAL 现在由 SunManager 管理，此处的常量可能已废弃
     public static final long NATURAL_SUN_INTERVAL = 10000; // 自然阳光间隔（10秒）
     public static final int NATURAL_SUN_AMOUNT = 25; // 自然阳光数量
-    public static final long SUNFLOWER_PRODUCE_INTERVAL = 10000; // 向日葵产阳光间隔（24秒）
+    public static final long SUNFLOWER_PRODUCE_INTERVAL = 200000; // 向日葵产阳光间隔（20秒）
     public static final int SUNFLOWER_SUN_AMOUNT = 50; // 向日葵产生的阳光数量
     public static final long SUN_COLLECTION_COOLDOWN = 100; // 阳光收集冷却时间（0.1秒）
 
@@ -60,7 +62,7 @@ public class GameConfig {
     public static final int WALLNUT_COST = 50;
 
     // 游戏机制
-    public static final int SHOOT_INTERVAL = 250;   // 射击间隔(游戏帧)
+    public static final int SHOOT_INTERVAL = 1600;   // 射击间隔(游戏帧)
     public static final int SUN_PRODUCE_INTERVAL = 2000; // 阳光生产间隔
 
     // 僵尸血量

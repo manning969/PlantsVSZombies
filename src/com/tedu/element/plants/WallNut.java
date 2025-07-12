@@ -20,9 +20,9 @@ public class WallNut extends Plant {
     }
     
     public WallNut(int gridX, int gridY) {
-        super(gridX, gridY, 200, GameConfig.WALLNUT_COST, // 增加血量到4000，更耐打
+        super(gridX, gridY, 1250, GameConfig.WALLNUT_COST, // 增加血量到4000，更耐打
               GameLoad.imgMap.get("wallnut_full"));
-        this.maxHp = 200;
+        this.maxHp = 1250;
         this.currentState = "full";
     }
     

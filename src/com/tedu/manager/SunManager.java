@@ -20,15 +20,15 @@ public class SunManager {
     // 阳光生成控制参数
     private long lastNaturalSunTime; // 上次自然掉落阳光的时间
     // 自然阳光间隔：参考原版，大约7-12秒随机生成一次阳光
-    private static final long NATURAL_SUN_MIN_INTERVAL = 7000; // 自然阳光最小间隔（7秒）
-    private static final long NATURAL_SUN_MAX_INTERVAL = 12000; // 自然阳光最大间隔（12秒）
+    private static final long NATURAL_SUN_MIN_INTERVAL = GameConfig.NATURAL_SUN_INTERVAL-3; // 自然阳光最小间隔（7秒）
+    private static final long NATURAL_SUN_MAX_INTERVAL = GameConfig.NATURAL_SUN_INTERVAL+2; // 自然阳光最大间隔（12秒）
     private long nextNaturalSunInterval; // 下次自然阳光的实际间隔
-    private static final int NATURAL_SUN_AMOUNT = 25; // 自然阳光数量
+    private static final int NATURAL_SUN_AMOUNT = GameConfig.NATURAL_SUN_AMOUNT; // 自然阳光数量
 
     // 向日葵阳光生成控制
     // 向日葵产阳光间隔：原版向日葵产出阳光约为24-25秒左右
-    public static final long SUNFLOWER_PRODUCE_INTERVAL = 24000; // 向日葵产阳光间隔（24秒）
-    public static final int SUNFLOWER_SUN_AMOUNT = 50; // 向日葵产生的阳光数量
+    public static final long SUNFLOWER_PRODUCE_INTERVAL = GameConfig.SUNFLOWER_PRODUCE_INTERVAL; // 向日葵产阳光间隔（24秒）
+    public static final int SUNFLOWER_SUN_AMOUNT = GameConfig.SUNFLOWER_SUN_AMOUNT; // 向日葵产生的阳光数量
 
     // 阳光收集控制
     private static final long SUN_COLLECTION_COOLDOWN = 100; // 阳光收集冷却时间（0.1秒）

@@ -26,7 +26,7 @@ public class Peashooter extends Plant {
     }
 
     public Peashooter(int gridX, int gridY) {
-        super(gridX, gridY, 100, GameConfig.PEASHOOTER_COST,
+        super(gridX, gridY, 500, GameConfig.PEASHOOTER_COST,
               GameLoad.imgMap.get("peashooter_idle")); // 初始设置为待机动画
         this.currentIconIsAttacking = false;
     }

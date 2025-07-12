@@ -10,7 +10,7 @@ wallnut_cracked2=resources/images/plants/wallnut/wallnut_cracked2.gif
 normal_walk=resources/images/zombies/normal/normal_walk.gif
 normal_eat=resources/images/zombies/normal/normal_eat.gif
 normal_die=resources/images/zombies/normal/normal_die.gif
-conehead_walk=resources/images/zombies/conehead/conehead_walk1.png
+conehead_walk=resources/images/zombies/conehead/conehead_walk.gif
 conehead_eat=resources/images/zombies/conehead/conehead_eat.gif
 conehead_die=resources/images/zombies/conehead/conehead_die.gif
 

@@ -55,6 +55,95 @@ public class ConeheadZombie extends Zombie {
         int rowIndex = Integer.parseInt(str.trim());
         return new ConeheadZombie(rowIndex);
     }
+    
+    /**
+     * 创建独立的死亡动画图标 - 通过字节数组确保完全独立
+     */
+    @Override
+    protected ImageIcon createIndependentDeathIcon() {
+        try {
+            java.io.InputStream inputStream = null;
+            byte[] imageBytes = null;
+            
+            // 注意：路障僵尸可能使用相同的死亡动画或不同的动画
+            String deathGifPath = "resources/images/zombies/conehead/conehead_die.gif";
+            java.io.File gifFile = new java.io.File(deathGifPath);
+            
+            if (gifFile.exists()) {
+                inputStream = new java.io.FileInputStream(gifFile);
+            } else {
+                // 从类路径读取
+                inputStream = getClass().getClassLoader().getResourceAsStream("images/zombies/conehead/conehead_die.gif");
+            }
+            
+            // 如果路障僵尸没有专门的死亡动画，使用普通僵尸的
+            if (inputStream == null) {
+                System.out.println("⚠️ 路障僵尸死亡动画不存在，使用普通僵尸死亡动画");
+                deathGifPath = "resources/images/zombies/normal/normal_die.gif";
+                gifFile = new java.io.File(deathGifPath);
+                if (gifFile.exists()) {
+                    inputStream = new java.io.FileInputStream(gifFile);
+                } else {
+                    inputStream = getClass().getClassLoader().getResourceAsStream("images/zombies/normal/normal_die.gif");
+                }
+            }
+            
+            if (inputStream != null) {
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    baos.write(buffer, 0, bytesRead);
+                }
+                imageBytes = baos.toByteArray();
+                inputStream.close();
+                baos.close();
+                
+                ImageIcon independentIcon = new ImageIcon(imageBytes);
+                System.out.println("✅ 路障僵尸：通过字节数组创建独立死亡动画图标，大小: " + imageBytes.length + " 字节");
+                return independentIcon;
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ 创建路障僵尸独立死亡动画图标失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        // 备用方案
+        try {
+            java.net.URL gifURL = getClass().getClassLoader().getResource("images/zombies/conehead/conehead_die.gif");
+            if (gifURL == null) {
+                gifURL = getClass().getClassLoader().getResource("images/zombies/normal/normal_die.gif");
+            }
+            
+            if (gifURL != null) {
+                java.io.InputStream urlStream = gifURL.openStream();
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = urlStream.read(buffer)) != -1) {
+                    baos.write(buffer, 0, bytesRead);
+                }
+                byte[] imageBytes = baos.toByteArray();
+                urlStream.close();
+                baos.close();
+                
+                ImageIcon independentIcon = new ImageIcon(imageBytes);
+                System.out.println("✅ 路障僵尸：通过URL字节数组创建独立死亡动画图标");
+                return independentIcon;
+            }
+        } catch (Exception e) {
+            System.err.println("❌ 通过URL创建路障僵尸独立死亡动画图标失败: " + e.getMessage());
+        }
+        
+        // 最后备用方案
+        System.out.println("⚠️ 路障僵尸使用缓存死亡动画图标作为最后备用");
+        ImageIcon fallback = GameLoad.imgMap.get("conehead_die");
+        if (fallback == null) {
+            fallback = GameLoad.imgMap.get("normal_die");
+        }
+        return fallback;
+    }
 
     @Override
     protected void checkForPlants() {
@@ -90,53 +179,33 @@ public class ConeheadZombie extends Zombie {
     @Override
     protected void updateImage() {
         ImageIcon newIcon = null;
-        String logMessage = "";
         String iconKey = "";
 
         switch (currentAnimationState) {
             case WALK:
-                iconKey = "conehead_walk";
+                iconKey = "normal_walk"; // 注意：这里可能需要改为 "conehead_walk"
                 newIcon = GameLoad.imgMap.get(iconKey);
-                logMessage = "🚶 切换到走路动画";
                 break;
             case EAT:
-                iconKey = "conehead_eat";
+                iconKey = "normal_eat"; // 注意：这里可能需要改为 "conehead_eat"
                 newIcon = GameLoad.imgMap.get(iconKey);
-                logMessage = "🍽️ 切换到啃食动画";
                 break;
             case DIE:
-                iconKey = "conehead_die";
-                newIcon = GameLoad.imgMap.get(iconKey);
-                logMessage = "💀 切换到死亡动画 (宽度: " + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth) + ")";
-                break;
+                // 死亡状态下不在这里更新图标，由 handleDeathAnimation 处理
+                return;
             default:
-                iconKey = "conehead_walk";
+                iconKey = "normal_walk";
                 newIcon = GameLoad.imgMap.get(iconKey);
-                logMessage = "❓ 未知状态，默认走路动画";
                 break;
         }
 
-        // 检查图片是否成功加载
-        if (newIcon == null) {
-            System.err.println("❌ 无法加载图片: " + iconKey + " (状态: " + currentAnimationState + ")");
-            // 使用备用图片
-            if (currentAnimationState == ZombieAnimationState.DIE) {
-                newIcon = GameLoad.imgMap.get("conehead_walk"); // 使用走路图片作为备用
-                if (newIcon != null) {
-                    System.out.println("🔄 使用备用图片: conehead_walk 代替 conehead_die");
-                }
-            }
-        }
-
-        // 只有当图片不同时才更新
-        if (newIcon != null && this.getIcon() != newIcon) {
+        if (newIcon != null) {
             this.setIcon(newIcon);
-            System.out.println("🎭 " + this.getClass().getSimpleName() + " " + logMessage + " (图片: " + iconKey + ")");
-        } else if (newIcon == null) {
+        } else {
             System.err.println("⚠️ " + this.getClass().getSimpleName() + " 无法设置图片: " + iconKey);
         }
     }
-
+  
     @Override
     protected boolean canAttack(long gameTime) {
         // 死亡状态下不能攻击

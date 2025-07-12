@@ -30,6 +30,9 @@ public abstract class Zombie extends ElementObj {
     protected int dieAnimationXOffset = 0;
     // 新增：死亡动画时的Y偏移
     protected int dieAnimationYOffset = 0;
+    
+    protected ImageIcon independentDeathIcon = null;
+    protected boolean deathIconCreated = false;
 
     // 僵尸动画状态枚举
     public enum ZombieAnimationState {
@@ -167,59 +170,55 @@ public abstract class Zombie extends ElementObj {
     }
 
     /**
-     * 处理死亡动画逻辑 - 修复尺寸调整问题
+     * 处理死亡动画逻辑
      */
     private void handleDeathAnimation(long gameTime) {
         long timeInDeathState = System.currentTimeMillis() - animationStateStartTime;
         
-        // *** 修复：简化条件判断，确保尺寸调整能够执行 ***
+        // 确保死亡动画图标已创建且独立
+        if (!deathIconCreated) {
+            independentDeathIcon = createIndependentDeathIcon();
+            if (independentDeathIcon != null) {
+                this.setIcon(independentDeathIcon);
+                deathIconCreated = true;
+                System.out.println("🎬 " + this.getClass().getSimpleName() + " 创建独立死亡动画图标");
+            }
+        }
+        
         // 在死亡动画开始的前几帧内调整尺寸（只调整一次）
-        if (timeInDeathState < 200 && timeInDeathState >= 0) { // 前200毫秒内
-            // 检查是否需要调整尺寸
+        if (timeInDeathState < 200 && timeInDeathState >= 0) {
             int targetWidth = GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth;
             int targetHeight = GameConfig.ZOMBIE_HEIGHT + dieAnimationExtraHeight;
             
             if (this.getW() != targetWidth || this.getH() != targetHeight) {
-                // 保存原始位置
                 int originalX = this.getX();
                 int originalY = this.getY();
                 
-                // 应用新的尺寸
                 this.setW(targetWidth);
                 this.setH(targetHeight);
-                
-                // 应用位置偏移
                 this.setX(originalX + dieAnimationXOffset);
                 this.setY(originalY + dieAnimationYOffset);
                 
                 System.out.println("💀 " + this.getClass().getSimpleName() + 
                                  " 死亡动画尺寸已调整: " +
                                  "宽度 " + GameConfig.ZOMBIE_WIDTH + " -> " + targetWidth + 
-                                 ", 高度 " + GameConfig.ZOMBIE_HEIGHT + " -> " + targetHeight +
-                                 ", X偏移: " + dieAnimationXOffset + 
-                                 ", Y偏移: " + dieAnimationYOffset);
+                                 ", 高度 " + GameConfig.ZOMBIE_HEIGHT + " -> " + targetHeight);
             }
         }
-        
-        // 持续更新动画帧
-        updateImage();
         
         // 检查动画是否播放完毕
         if (timeInDeathState >= dieAnimationDuration) {
-            super.setLive(false); // 标记为不活跃，ElementManager会清理
-            this.setW(0); // 设置宽度为0，防止继续绘制
-            this.setH(0); // 设置高度为0
-            System.out.println("💀 " + this.getClass().getSimpleName() + " 死亡动画播放完毕 (" + timeInDeathState + "ms)");
-        } else {
-            // 动画播放中的调试信息（每秒输出一次）
-            if (timeInDeathState % 1000 < 50) {
-                System.out.println("🎬 " + this.getClass().getSimpleName() + " 死亡动画播放中: " 
-                                 + timeInDeathState + "/" + dieAnimationDuration + "ms" +
-                                 " 当前尺寸: " + this.getW() + "x" + this.getH() +
-                                 " 位置: (" + this.getX() + "," + this.getY() + ")");
+            if (timeInDeathState >= dieAnimationDuration + 100) {
+                super.setLive(false);
+                System.out.println("💀 " + this.getClass().getSimpleName() + " 死亡动画播放完毕，标记为不活跃");
             }
         }
     }
+    
+    /**
+     * 创建独立的死亡动画图标 - 抽象方法，由子类实现
+     */
+    protected abstract ImageIcon createIndependentDeathIcon();
 
     @Override
     protected void move() {
@@ -303,19 +302,20 @@ public abstract class Zombie extends ElementObj {
     @Override
     public void die() {
         if (isDying) {
-            return; // 防止重复调用
+            System.out.println("⚠️ " + this.getClass().getSimpleName() + " 重复调用die()方法，已忽略");
+            return;
         }
 
         this.isDying = true;
+        this.deathIconCreated = false; // 重置死亡图标创建标记
+        this.independentDeathIcon = null; // 清空之前的死亡图标
         
-        // 立即停止所有行为
         this.isEating = false;
         this.target = null;
         
-        // 切换到死亡动画状态
         setAnimationState(ZombieAnimationState.DIE);
         
-        System.out.println("💀 " + this.getClass().getSimpleName() + " 在行" + rowIndex + " 死亡！");
+        System.out.println("💀 " + this.getClass().getSimpleName() + " 在行" + rowIndex + " 开始死亡动画！");
     }
 
     /**
@@ -328,13 +328,18 @@ public abstract class Zombie extends ElementObj {
             this.animationStateStartTime = System.currentTimeMillis();
             
             System.out.println("🎭 " + this.getClass().getSimpleName() + " 状态变化: " 
-                             + previousState + " -> " + newState);
+                             + previousState + " -> " + newState + " (时间戳: " + animationStateStartTime + ")");
             
             // 立即更新图像
             updateImage();
+            
+            // 如果切换到死亡状态，输出额外信息
+            if (newState == ZombieAnimationState.DIE) {
+                System.out.println("🎬 开始播放死亡动画，当前图标: " + 
+                                 (getIcon() != null ? "已设置" : "未设置"));
+            }
         }
     }
-
     /**
      * 更新僵尸的动画图片 - 子类必须实现
      */

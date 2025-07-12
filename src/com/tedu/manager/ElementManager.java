@@ -99,7 +99,6 @@ public class ElementManager {
 
     /**
      * 游戏主循环中调用的所有元素的逻辑处理和碰撞检测
-     * 这个方法现在包含了所有的元素更新、碰撞处理和清理逻辑
      */
     public void gameLogicAndCollisionDetection(long gameTime) {
         // 1. 让所有元素执行自己的model逻辑 (遍历副本以避免ConcurrentModificationException)
@@ -122,6 +121,7 @@ public class ElementManager {
         List<ElementObj> projectiles = getElementsByKey(GameElement.PROJECTILES);
         List<ElementObj> plants = getElementsByKey(GameElement.PLANTS);
 
+        // 小推车与僵尸的碰撞检测
         List<LawnMower> currentLawnMowers = new ArrayList<>();
         for(ElementObj objMower : lawnMowers) {
             if(objMower instanceof LawnMower) {
@@ -149,16 +149,10 @@ public class ElementManager {
             }
         }
 
-        List<ElementObj[]> peaZombieCollisions = CollisionDetector.detectProjectileVsZombie(projectiles, zombies);
-        for (ElementObj[] collision : peaZombieCollisions) {
-            Pea pea = (Pea) collision[0];
-            Zombie zombie = (Zombie) collision[1];
-            if (pea.isLive() && zombie.isLive() && zombie.getCurrentAnimationState() != Zombie.ZombieAnimationState.DIE) {
-                zombie.takeDamage(pea.getDamage());
-                pea.die();
-            }
-        }
+        // 豌豆与僵尸的碰撞检测 - 修复版
+        checkPeaZombieCollisions(projectiles, zombies);
 
+        // 僵尸与植物的碰撞检测
         List<ElementObj[]> zombiePlantCollisions = CollisionDetector.detectZombieVsPlant(zombies, plants);
         for (ElementObj[] collision : zombiePlantCollisions) {
             Zombie zombie = (Zombie) collision[0];
@@ -170,6 +164,56 @@ public class ElementManager {
 
         // 3. 清理死亡或完成任务的元素
         cleanupElements();
+    }
+    
+    private void checkPeaZombieCollisions(List<ElementObj> projectiles, List<ElementObj> zombies) {
+        Iterator<ElementObj> projIterator = projectiles.iterator();
+        
+        while (projIterator.hasNext()) {
+            ElementObj projObj = projIterator.next();
+            
+            if (!(projObj instanceof Pea) || !projObj.isLive()) {
+                continue;
+            }
+            
+            Pea pea = (Pea) projObj;
+            
+            // 检查豌豆是否已经击中过目标
+            if (pea.hasHit()) {
+                continue; // 跳过已经击中的豌豆
+            }
+            
+            // 检查与所有僵尸的碰撞
+            boolean hitDetected = false;
+            for (ElementObj zombieObj : zombies) {
+                if (!(zombieObj instanceof Zombie) || !zombieObj.isLive()) {
+                    continue;
+                }
+                
+                Zombie zombie = (Zombie) zombieObj;
+                
+                // 确保僵尸还活着且不在死亡状态
+                if (zombie.getCurrentAnimationState() == Zombie.ZombieAnimationState.DIE || zombie.isDying()) {
+                    continue;
+                }
+                
+                // 检查是否在同一行且发生碰撞
+                if (pea.getRowIndex() == zombie.getRowIndex() && 
+                    CollisionDetector.isColliding(pea, zombie)) {
+                    
+                    // 确保只造成一次伤害
+                    if (pea.dealDamage()) { // 使用 dealDamage() 而不是 die()
+                        zombie.takeDamage(pea.getDamage());
+                        System.out.println("🎯 豌豆击中僵尸！造成 " + pea.getDamage() + " 点伤害");
+                        hitDetected = true;
+                        break; // 击中一个僵尸后跳出循环
+                    }
+                }
+            }
+            
+            // 如果豌豆击中了目标，在下一次清理时会被移除
+            // 不需要在这里手动移除，避免ConcurrentModificationException
+        }
     }
 
     public void cleanupElements() {

@@ -292,7 +292,7 @@ public class GameMainJPanel extends JPanel implements Runnable {
             int textHeight = fm.getHeight();
             
             // 设置框的尺寸，确保文字能完全显示
-            int boxWidth = Math.max(textWidth + 20, 240); // 至少280像素宽，或根据文字宽度调整
+            int boxWidth = Math.max(textWidth + 20, 280); // 至少280像素宽，或根据文字宽度调整
             int boxHeight = textHeight + 10; // 根据文字高度调整
             int boxX = 10;
             int boxY = 90;
