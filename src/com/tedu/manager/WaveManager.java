@@ -59,7 +59,7 @@ public class WaveManager {
         waveConfigs = new ArrayList<>();
         
         // 第1波：简单开始，只有少量普通僵尸
-        waveConfigs.add(new WaveConfig(1, 3, 0, 0, 800, "新手指导"));
+        waveConfigs.add(new WaveConfig(1, 3, 1, 0, 800, "新手指导"));
         
         // 第2-3波：逐渐增加普通僵尸数量
         waveConfigs.add(new WaveConfig(2, 5, 0, 0, 700, "熟悉节奏"));

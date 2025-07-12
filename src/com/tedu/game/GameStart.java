@@ -7,7 +7,7 @@ import com.tedu.show.GameMainJPanel;
 import com.tedu.utils.GameConfig;
 
 /**
- * 植物大战僵尸游戏启动类 - 修复版本
+ * 植物大战僵尸游戏启动类
  */
 public class GameStart {
     
@@ -33,9 +33,6 @@ public class GameStart {
             
             // 测试字体显示效果
             com.tedu.utils.FontHelper.testFontDisplay();
-            
-            // 如果需要查看所有可用字体，取消下行注释
-            // com.tedu.utils.FontHelper.printSystemFonts();
             
             // 创建游戏窗口
             GameJFrame gameFrame = new GameJFrame();

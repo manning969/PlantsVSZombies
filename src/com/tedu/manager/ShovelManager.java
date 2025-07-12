@@ -94,12 +94,6 @@ public class ShovelManager {
                     System.out.println("✅ 从GameLoad.imgMap加载所有铲子图片成功");
                     return;
                 } else {
-                    // 输出详细的调试信息
-                    System.out.println("⚠️ 部分铲子图片未找到:");
-                    System.out.println("  shovel_idle: " + (shovelIdleIcon != null ? "✅" : "❌"));
-                    System.out.println("  shovel_hover: " + (shovelHoverIcon != null ? "✅" : "❌"));
-                    System.out.println("  shovel_active: " + (shovelActiveIcon != null ? "✅" : "❌"));
-                    
                     // 如果只找到部分图片，尝试用已找到的图片替代缺失的
                     if (shovelIdleIcon != null) {
                         if (shovelHoverIcon == null) {
