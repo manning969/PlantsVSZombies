@@ -69,7 +69,7 @@ public class GameConfig {
     public static final int BUCKETHEAD_ZOMBIE_HP = 500;
 
     // 僵尸移动频率控制
-    public static final int ZOMBIE_MOVE_INTERVAL = 3;  // 每3帧移动1次，降低移动频率
+    public static final int ZOMBIE_MOVE_INTERVAL = 5;  // 每8帧移动1次，降低移动频率
 
     // 小推车配置
     public static final int LAWN_MOWER_WIDTH = 70;  // 小推车宽度 (根据图片调整)
