@@ -10,7 +10,7 @@ import javax.swing.JComponent;
 import com.tedu.utils.GameConfig;
 
 /**
- * 铲子管理器 - 处理铲子模式的切换和显示 (修复版)
+ * 铲子管理器 - 使用真实图片资源版本
  */
 public class ShovelManager {
     
@@ -51,17 +51,89 @@ public class ShovelManager {
     }
     
     /**
-     * 加载铲子图片资源 - 修复版
+     * 加载铲子图片资源 - 修复版，使用真实图片
      */
     private void loadShovelImages() {
         try {
-            // 尝试从GameLoad加载图片（如果GameLoad可用）
-            // shovelIdleIcon = GameLoad.imgMap.get("shovel_idle");
-            // shovelHoverIcon = GameLoad.imgMap.get("shovel_hover");
-            // shovelActiveIcon = GameLoad.imgMap.get("shovel_active");
+            // 优先从GameLoad的imgMap加载
+            if (GameLoad.imgMap != null) {
+                // 尝试多种可能的键名
+                String[] possibleIdleKeys = {"shovel_idle", "shovel_idle_png", "ui_shovel_idle"};
+                String[] possibleHoverKeys = {"shovel_hover", "shovel_hover_png", "ui_shovel_hover"};
+                String[] possibleActiveKeys = {"shovel_active", "shovel_activate", "shovel_active_png", "ui_shovel_active"};
+                
+                // 查找空闲状态图片
+                for (String key : possibleIdleKeys) {
+                    if (GameLoad.imgMap.containsKey(key)) {
+                        shovelIdleIcon = GameLoad.imgMap.get(key);
+                        System.out.println("✅ 找到空闲铲子图片，键: " + key);
+                        break;
+                    }
+                }
+                
+                // 查找悬停状态图片
+                for (String key : possibleHoverKeys) {
+                    if (GameLoad.imgMap.containsKey(key)) {
+                        shovelHoverIcon = GameLoad.imgMap.get(key);
+                        System.out.println("✅ 找到悬停铲子图片，键: " + key);
+                        break;
+                    }
+                }
+                
+                // 查找激活状态图片
+                for (String key : possibleActiveKeys) {
+                    if (GameLoad.imgMap.containsKey(key)) {
+                        shovelActiveIcon = GameLoad.imgMap.get(key);
+                        System.out.println("✅ 找到激活铲子图片，键: " + key);
+                        break;
+                    }
+                }
+                
+                // 检查加载结果
+                if (shovelIdleIcon != null && shovelHoverIcon != null && shovelActiveIcon != null) {
+                    System.out.println("✅ 从GameLoad.imgMap加载所有铲子图片成功");
+                    return;
+                } else {
+                    // 输出详细的调试信息
+                    System.out.println("⚠️ 部分铲子图片未找到:");
+                    System.out.println("  shovel_idle: " + (shovelIdleIcon != null ? "✅" : "❌"));
+                    System.out.println("  shovel_hover: " + (shovelHoverIcon != null ? "✅" : "❌"));
+                    System.out.println("  shovel_active: " + (shovelActiveIcon != null ? "✅" : "❌"));
+                    
+                    // 如果只找到部分图片，尝试用已找到的图片替代缺失的
+                    if (shovelIdleIcon != null) {
+                        if (shovelHoverIcon == null) {
+                            shovelHoverIcon = shovelIdleIcon;
+                            System.out.println("🔄 使用idle图片替代hover图片");
+                        }
+                        if (shovelActiveIcon == null) {
+                            shovelActiveIcon = shovelIdleIcon;
+                            System.out.println("🔄 使用idle图片替代active图片");
+                        }
+                        System.out.println("✅ 使用替代方案完成铲子图片加载");
+                        return;
+                    }
+                }
+            }
             
-            // 如果图片不存在或GameLoad不可用，直接创建默认图片
-            System.out.println("⚠️ 创建默认铲子图片");
+            // 备用方案：直接从resources路径加载
+            System.out.println("🔄 尝试直接从资源路径加载铲子图片...");
+            shovelIdleIcon = loadImageFromResources("ui/shovel/shovel_idle.png");
+            shovelHoverIcon = loadImageFromResources("ui/shovel/shovel_hover.png");
+            shovelActiveIcon = loadImageFromResources("ui/shovel/shovel_active.png");
+            
+            if (shovelIdleIcon != null || shovelHoverIcon != null || shovelActiveIcon != null) {
+                System.out.println("✅ 部分铲子图片直接加载成功");
+                // 用成功加载的图片替代失败的
+                if (shovelIdleIcon != null) {
+                    if (shovelHoverIcon == null) shovelHoverIcon = shovelIdleIcon;
+                    if (shovelActiveIcon == null) shovelActiveIcon = shovelIdleIcon;
+                }
+                return;
+            }
+            
+            // 最后的备用方案：创建默认图片
+            System.out.println("⚠️ 无法加载任何铲子图片，使用默认绘制图片");
             createDefaultShovelImages();
             
         } catch (Exception e) {
@@ -71,7 +143,58 @@ public class ShovelManager {
     }
     
     /**
-     * 创建默认的铲子图片
+     * 从resources路径加载图片
+     */
+    private ImageIcon loadImageFromResources(String imagePath) {
+        try {
+            // 尝试多种路径格式
+            String[] possiblePaths = {
+                "resources/images/" + imagePath,
+                "/resources/images/" + imagePath,
+                "images/" + imagePath,
+                "/" + imagePath,
+                imagePath
+            };
+            
+            for (String path : possiblePaths) {
+                try {
+                    java.net.URL imageURL = getClass().getClassLoader().getResource(path);
+                    if (imageURL != null) {
+                        ImageIcon icon = new ImageIcon(imageURL);
+                        if (icon.getIconWidth() > 0) { // 确保图片有效
+                            System.out.println("✅ 成功加载图片: " + path);
+                            return icon;
+                        }
+                    }
+                } catch (Exception e) {
+                    // 继续尝试下一个路径
+                }
+            }
+            
+            // 尝试从文件系统加载
+            try {
+                String filePath = "resources/images/" + imagePath;
+                java.io.File file = new java.io.File(filePath);
+                if (file.exists()) {
+                    ImageIcon icon = new ImageIcon(filePath);
+                    if (icon.getIconWidth() > 0) {
+                        System.out.println("✅ 从文件系统加载图片: " + filePath);
+                        return icon;
+                    }
+                }
+            } catch (Exception e) {
+                // 忽略文件系统加载失败
+            }
+            
+        } catch (Exception e) {
+            System.err.println("加载图片失败 " + imagePath + ": " + e.getMessage());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 创建默认的铲子图片（仅在无法加载真实图片时使用）
      */
     private void createDefaultShovelImages() {
         try {
@@ -234,7 +357,7 @@ public class ShovelManager {
     }
     
     /**
-     * 绘制铲子按钮
+     * 绘制铲子按钮 - 使用真实图片
      */
     public void drawShovelButton(Graphics2D g2d) {
         // 根据状态选择图片
@@ -251,45 +374,47 @@ public class ShovelManager {
                 break;
         }
         
-        // 绘制按钮背景
+        // 绘制按钮背景（可选，根据设计需求）
         if (currentState == ShovelState.ACTIVE) {
-            g2d.setColor(new java.awt.Color(255, 255, 0, 200)); // 黄色高亮
+            g2d.setColor(new java.awt.Color(255, 255, 0, 100)); // 半透明黄色高亮
+            g2d.fillRoundRect(shovelButtonX - 2, shovelButtonY - 2, 
+                             shovelButtonWidth + 4, shovelButtonHeight + 4, 8, 8);
         } else if (currentState == ShovelState.HOVER) {
-            g2d.setColor(new java.awt.Color(200, 200, 200, 150)); // 灰色悬停
-        } else {
-            g2d.setColor(new java.awt.Color(139, 69, 19, 150)); // 棕色背景
+            g2d.setColor(new java.awt.Color(200, 200, 200, 80)); // 半透明灰色悬停
+            g2d.fillRoundRect(shovelButtonX - 1, shovelButtonY - 1, 
+                             shovelButtonWidth + 2, shovelButtonHeight + 2, 6, 6);
         }
         
-        g2d.fillRoundRect(shovelButtonX, shovelButtonY, shovelButtonWidth, shovelButtonHeight, 8, 8);
-        
-        // 绘制边框
-        g2d.setColor(currentState == ShovelState.ACTIVE ? java.awt.Color.YELLOW : java.awt.Color.BLACK);
-        g2d.setStroke(new java.awt.BasicStroke(currentState == ShovelState.ACTIVE ? 3 : 1));
-        g2d.drawRoundRect(shovelButtonX, shovelButtonY, shovelButtonWidth, shovelButtonHeight, 8, 8);
-        
-        // 绘制铲子图标
+        // 绘制铲子图标 - 主要使用真实图片
         if (iconToDraw != null) {
             g2d.drawImage(iconToDraw.getImage(), 
-                         shovelButtonX + 9, shovelButtonY + 9,
-                         shovelButtonWidth - 18, shovelButtonHeight - 18, null);
+                         shovelButtonX, shovelButtonY,
+                         shovelButtonWidth, shovelButtonHeight, null);
         } else {
-            // 如果没有图标，绘制文字
-            g2d.setColor(currentState == ShovelState.ACTIVE ? java.awt.Color.BLACK : java.awt.Color.WHITE);
+            // 备用方案：如果图片完全加载失败，绘制简单文字
+            g2d.setColor(java.awt.Color.WHITE);
+            g2d.fillRoundRect(shovelButtonX, shovelButtonY, shovelButtonWidth, shovelButtonHeight, 8, 8);
+            g2d.setColor(java.awt.Color.BLACK);
+            g2d.setStroke(new java.awt.BasicStroke(2));
+            g2d.drawRoundRect(shovelButtonX, shovelButtonY, shovelButtonWidth, shovelButtonHeight, 8, 8);
             g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 12));
-            g2d.drawString("铲", shovelButtonX + 15, shovelButtonY + 30);
+            g2d.drawString("铲", shovelButtonX + 17, shovelButtonY + 30);
+        }
+        
+        // 绘制激活状态边框
+        if (currentState == ShovelState.ACTIVE) {
+            g2d.setColor(java.awt.Color.YELLOW);
+            g2d.setStroke(new java.awt.BasicStroke(3));
+            g2d.drawRoundRect(shovelButtonX - 2, shovelButtonY - 2, 
+                             shovelButtonWidth + 4, shovelButtonHeight + 4, 8, 8);
         }
         
         // 绘制快捷键提示
         g2d.setColor(java.awt.Color.WHITE);
         g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 8));
-        g2d.drawString("S", shovelButtonX + 3, shovelButtonY + 12);
-        
-        // 绘制状态文字
-        if (currentState == ShovelState.ACTIVE) {
-            g2d.setColor(java.awt.Color.BLACK);
-            g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 8));
-            g2d.drawString("激活", shovelButtonX + 2, shovelButtonY + 47);
-        }
+        g2d.fillRect(shovelButtonX + 2, shovelButtonY + 2, 12, 10);
+        g2d.setColor(java.awt.Color.BLACK);
+        g2d.drawString("S", shovelButtonX + 4, shovelButtonY + 10);
     }
     
     /**

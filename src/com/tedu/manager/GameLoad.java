@@ -12,7 +12,10 @@ import javax.swing.ImageIcon;
 import com.tedu.element.ElementObj;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileWriter;
+// import java.io.FileWriter; // 移除或注释掉这个导入，如果你要替换掉它
+import java.io.FileOutputStream; // 新增导入
+import java.io.OutputStreamWriter; // 新增导入
+
 import com.tedu.element.items.Sun;
 import com.tedu.element.items.Sun.SunType;
 import com.tedu.element.items.LawnMower;
@@ -34,7 +37,6 @@ public class GameLoad {
      * 加载图片资源
      */
     public static void loadImg() {
-        // 首先尝试加载配置文件
         File file = new File("src/com/tedu/text/GameData.pro");
 
         if (!file.exists()) {
@@ -57,7 +59,6 @@ public class GameLoad {
                     System.out.println("✅ 成功加载图片: " + o.toString() + " -> " + url);
                 } else {
                     System.err.println("❌ 图片文件不存在: " + url + " (键: " + o.toString() + ")");
-                    // 为缺失的死亡动画创建占位图片
                     if (o.toString().contains("_die")) {
                         createPlaceholderDeathImage(o.toString());
                     }
@@ -67,7 +68,6 @@ public class GameLoad {
             e.printStackTrace();
         }
         
-        // 验证关键的死亡动画图片是否加载成功
         validateDeathAnimations();
     }
 
@@ -96,11 +96,9 @@ public class GameLoad {
             ImageIcon walkIcon = imgMap.get(walkKey);
             
             if (walkIcon != null) {
-                // 使用行走图片作为临时的死亡图片
                 imgMap.put(deathKey, walkIcon);
                 System.out.println("🔄 使用占位图片: " + deathKey + " -> " + walkKey);
             } else {
-                // 创建一个空的ImageIcon作为最后的备选
                 imgMap.put(deathKey, new ImageIcon());
                 System.out.println("⚠️  创建空占位图片: " + deathKey);
             }
@@ -130,7 +128,7 @@ public class GameLoad {
                 "normal_walk=resources/images/zombies/normal/normal_walk.gif\n" +
                 "normal_eat=resources/images/zombies/normal/normal_eat.gif\n" +
                 "normal_die=resources/images/zombies/normal/normal_die.gif\n" +
-                "conehead_walk=resources/images/zombies/conehead/conehead_walk1.png\n" +
+                "conehead_walk=resources/images/zombies/conehead/conehead_walk.gif\n" +
                 "conehead_eat=resources/images/zombies/conehead/conehead_eat.gif\n" +
                 "conehead_die=resources/images/zombies/conehead/conehead_die.gif\n" +
                 "\n# 子弹图片\n" +
@@ -150,7 +148,9 @@ public class GameLoad {
                 "zombie_crush_effect_1=resources/images/effects/zombie_crush_1.png\n" +
                 "zombie_crush_effect_2=resources/images/effects/zombie_crush_2.png\n";
 
-            try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+            // 使用 OutputStreamWriter 替代 FileWriter(File, Charset) 以兼容 JDK 8
+            try (OutputStreamWriter writer = new OutputStreamWriter(
+                    new FileOutputStream(file), StandardCharsets.UTF_8)) { //
                 writer.write(defaultContent);
             }
 
@@ -180,9 +180,11 @@ public class GameLoad {
      */
     public static ElementObj getObj(String str) {
         try {
+            // 使用 Class.forName 获取 Class 对象，然后调用 newInstance()
+            // 注意：newInstance() 在 JDK 9+ 中已被废弃，但在 JDK 8 中仍是常用方式
             Class<?> class1 = objMap.get(str);
             if (class1 != null) {
-                Object newInstance = class1.newInstance();
+                Object newInstance = class1.newInstance(); //
                 if (newInstance instanceof ElementObj) {
                     return (ElementObj) newInstance;
                 }
@@ -253,7 +255,9 @@ public class GameLoad {
                 "lawn_mower=com.tedu.element.items.LawnMower\n" +
                 "crushed_effect=com.tedu.element.effects.CrushedEffect\n";
 
-            try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+            // 使用 OutputStreamWriter 替代 FileWriter(File, Charset) 以兼容 JDK 8
+            try (OutputStreamWriter writer = new OutputStreamWriter(
+                    new FileOutputStream(file), StandardCharsets.UTF_8)) { //
                 writer.write(defaultContent);
             }
 

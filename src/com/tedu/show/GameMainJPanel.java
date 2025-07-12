@@ -284,17 +284,37 @@ public class GameMainJPanel extends JPanel implements Runnable {
      */
     private void drawShovelModeIndicator(Graphics2D g2d) {
         if (shovelManager != null && shovelManager.isShovelActive()) {
-            // 绘制铲子模式激活提示
-            g2d.setColor(new Color(255, 255, 0, 180));
-            g2d.fillRoundRect(10, 90, 200, 30, 10, 10);
+            // 计算文字宽度以确定合适的框大小
+            String indicatorText = "🔧 铲子模式激活 - 点击铲除植物";
+            g2d.setFont(FontHelper.getChineseFont(Font.BOLD, 14));
+            java.awt.FontMetrics fm = g2d.getFontMetrics();
+            int textWidth = fm.stringWidth(indicatorText);
+            int textHeight = fm.getHeight();
             
+            // 设置框的尺寸，确保文字能完全显示
+            int boxWidth = Math.max(textWidth + 20, 240); // 至少280像素宽，或根据文字宽度调整
+            int boxHeight = textHeight + 10; // 根据文字高度调整
+            int boxX = 10;
+            int boxY = 90;
+            
+            // 绘制铲子模式激活提示背景
+            g2d.setColor(new Color(255, 255, 0, 180));
+            g2d.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 10, 10);
+            
+            // 绘制边框
             g2d.setColor(Color.RED);
             g2d.setStroke(new BasicStroke(2));
-            g2d.drawRoundRect(10, 90, 200, 30, 10, 10);
+            g2d.drawRoundRect(boxX, boxY, boxWidth, boxHeight, 10, 10);
             
+            // 绘制文字 - 使用FontHelper确保中文正确显示
             g2d.setColor(Color.BLACK);
             g2d.setFont(FontHelper.getChineseFont(Font.BOLD, 14));
-            g2d.drawString("🔧 铲子模式激活 - 点击铲除植物", 15, 110);
+            
+            // 计算文字居中位置
+            int textX = boxX + (boxWidth - textWidth) / 2;
+            int textY = boxY + (boxHeight + fm.getAscent()) / 2 - 2; // 稍微调整垂直位置
+            
+            g2d.drawString(indicatorText, textX, textY);
         }
     }
 

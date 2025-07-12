@@ -1,3 +1,4 @@
+
 package com.tedu.element;
 
 import java.awt.Graphics;
@@ -6,7 +7,7 @@ import com.tedu.utils.GameConfig;
 import com.tedu.manager.GameLoad;
 
 /**
- * 僵尸基类 - 修复死亡动画处理，确保僵尸死亡后立即停止移动
+ * 僵尸基类 - 修复死亡动画处理，确保僵尸死亡后立即停止移动，添加移动间隔控制
  */
 public abstract class Zombie extends ElementObj {
     protected int hp;           // 生命值
@@ -16,6 +17,11 @@ public abstract class Zombie extends ElementObj {
     protected int rowIndex;     // 所在行索引
     protected boolean isEating; // 是否正在啃食
     protected ElementObj target; // 当前攻击目标
+    
+    // 移动控制相关
+    protected long frameCounter = 0;        // 帧计数器
+    protected long lastMoveFrame = 0;       // 上次移动的帧数
+    
     // 新增：死亡动画的额外宽度（相对于正常宽度）
     protected int dieAnimationExtraWidth = 0;
     // 新增：死亡动画的额外高度（相对于正常高度）
@@ -48,6 +54,8 @@ public abstract class Zombie extends ElementObj {
         this.currentAnimationState = ZombieAnimationState.WALK;
         this.animationStateStartTime = System.currentTimeMillis();
         this.isDying = false;
+        this.frameCounter = 0;
+        this.lastMoveFrame = 0;
     }
 
     public Zombie(int x, int y, int rowIndex, int hp, int speed, int damage, ImageIcon icon) {
@@ -62,6 +70,8 @@ public abstract class Zombie extends ElementObj {
         this.currentAnimationState = ZombieAnimationState.WALK;
         this.animationStateStartTime = System.currentTimeMillis();
         this.isDying = false;
+        this.frameCounter = 0;
+        this.lastMoveFrame = 0;
     }
 
     @Override
@@ -99,6 +109,9 @@ public abstract class Zombie extends ElementObj {
 
     @Override
     public final void model(long gameTime) {
+        // 增加帧计数器
+        frameCounter++;
+        
         // *** 核心修复：死亡状态下只处理动画，不执行任何其他逻辑 ***
         if (currentAnimationState == ZombieAnimationState.DIE) {
             handleDeathAnimation(gameTime);
@@ -132,9 +145,21 @@ public abstract class Zombie extends ElementObj {
             attackPlant();
         }
 
-        // 移动逻辑 - 只有在不啃食时才移动
+        // 移动逻辑 - 只有在不啃食时才移动，并且使用间隔控制
         if (!isEating) {
-            move();
+            // 检查是否到了移动时间
+            if (frameCounter - lastMoveFrame >= GameConfig.ZOMBIE_MOVE_INTERVAL) {
+                move();
+                lastMoveFrame = frameCounter; // 更新上次移动的帧数
+                
+                // 调试信息 - 每移动10次输出一次
+                if ((frameCounter / GameConfig.ZOMBIE_MOVE_INTERVAL) % 10 == 0) {
+                    System.out.println("🚶 " + this.getClass().getSimpleName() + 
+                                     " 移动 - 帧数: " + frameCounter + 
+                                     ", 位置: (" + this.getX() + "," + this.getY() + ")" +
+                                     ", 移动间隔: " + GameConfig.ZOMBIE_MOVE_INTERVAL);
+                }
+            }
         }
 
         // 更新动画图像
