@@ -287,10 +287,22 @@ public abstract class Zombie extends ElementObj {
         this.isEating = false;
         this.target = null;
         
+        // 新增：添加头掉落动画
+        try {
+            com.tedu.manager.ElementManager.getManager().addElement(
+                new com.tedu.element.effects.HeadDropEffect(
+                    this.getX(), this.getY(), this.getW(), this.getH()
+                ),
+                com.tedu.manager.GameElement.EFFECTS
+            );
+        } catch (Exception e) {
+            System.err.println("[HeadDropEffect] 添加失败: " + e.getMessage());
+        }
+
         // 切换到死亡动画状态
         setAnimationState(ZombieAnimationState.DIE);
         
-        System.out.println("💀 " + this.getClass().getSimpleName() + " 在行" + rowIndex + " 死亡！");
+        System.out.println("\uD83D\uDC80 " + this.getClass().getSimpleName() + " 在行" + rowIndex + " 死亡！");
     }
 
     /**
