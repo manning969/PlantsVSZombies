@@ -1,8 +1,11 @@
 # 植物图片
 peashooter_idle=resources/images/plants/peashooter/peashooter_idle.gif
+peashooter_idle_card=resources/images/plants/peashooter/peashooter_idle.png
 peashooter_attack=resources/images/plants/peashooter/peashooter_attack.gif
 sunflower_idle=resources/images/plants/sunflower/sunflower_idle.gif
+sunflower_idle_card=resources/images/plants/sunflower/sunflower_idle.png
 wallnut_full=resources/images/plants/wallnut/wallnut_full.gif
+wallnut_full_card=resources/images/plants/wallnut/wallnut_full.png
 wallnut_cracked1=resources/images/plants/wallnut/wallnut_cracked1.gif
 wallnut_cracked2=resources/images/plants/wallnut/wallnut_cracked2.gif
 

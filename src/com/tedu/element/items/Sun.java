@@ -39,6 +39,13 @@ public class Sun extends ElementObj {
     private double floatSpeed = 0.1;     // 悬浮速度
     private long animationTime = 0;      // 动画时间计数器 (用于sin函数)
 
+    // 新增：收集动画相关
+    private boolean isCollecting = false;
+    private int collectTargetX = 20; // 阳光栏x
+    private int collectTargetY = 35; // 阳光栏y
+    private double collectSpeed = 12.0; // 收集动画速度
+    private double collectAnimX, collectAnimY;
+
     // 默认构造函数，通常用于反射创建，后续需要通过createElement设置属性
     public Sun() {
         super();
@@ -129,16 +136,30 @@ public class Sun extends ElementObj {
                 // 基于动画时间计算Y轴偏移
                 drawY += (int)(Math.sin(animationTime * floatSpeed) * floatAmplitude);
             }
-
-            g.drawImage(this.getIcon().getImage(),
-                       this.getX(), drawY,
-                       this.getW(), this.getH(), null);
+            g.drawImage(this.getIcon().getImage(), getX(), drawY, getW(), getH(), null);
+        } else if (isCollecting) {
+            // 收集动画阶段
+            g.drawImage(this.getIcon().getImage(), (int)collectAnimX, (int)collectAnimY, getW(), getH(), null);
         }
     }
 
     @Override
     public final void model(long gameTime) {
         if (!this.isLive()) {
+            return;
+        }
+        if (isCollecting) {
+            // 收集动画：快速移动到目标点
+            double dx = collectTargetX - collectAnimX;
+            double dy = collectTargetY - collectAnimY;
+            double dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < collectSpeed) {
+                // 到达目标点，销毁
+                this.setLive(false);
+                return;
+            }
+            collectAnimX += collectSpeed * dx / dist;
+            collectAnimY += collectSpeed * dy / dist;
             return;
         }
 
@@ -209,11 +230,12 @@ public class Sun extends ElementObj {
      * 收集阳光
      */
     public void collect() {
-        if (!isCollected) {
-            isCollected = true;
-            this.setLive(false); // 设置为非活动状态，ElementManager 会移除它
-            System.out.println("收集了 " + value + " 点阳光");
-        }
+        if (isCollected || isCollecting) return;
+        isCollected = true;
+        // 启动收集动画
+        isCollecting = true;
+        collectAnimX = getX();
+        collectAnimY = getY();
     }
 
     /**

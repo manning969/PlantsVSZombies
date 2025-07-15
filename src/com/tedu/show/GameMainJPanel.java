@@ -16,6 +16,11 @@ import com.tedu.manager.ShovelManager;
 import com.tedu.manager.SunManager;
 import com.tedu.manager.WaveManager;
 import com.tedu.utils.GameConfig;
+import com.tedu.manager.GameLoad;
+import javax.swing.ImageIcon;
+import com.tedu.element.items.Sun;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 
 /**
  * 植物大战僵尸游戏主面板 - 完整铲子功能版本 (新增小推车绘制)
@@ -33,9 +38,34 @@ public class GameMainJPanel extends JPanel implements Runnable {
     // 游戏线程引用（用于调用种植和铲除方法）
     private com.tedu.controller.GameThread gameThread;
 
+    // 新增：记录当前选中的植物卡片索引
+    private int selectedPlantIndex = -1;
+
+    // 新增：记录鼠标悬停的草坪格子坐标
+    private int hoverGridX = -1;
+    private int hoverGridY = -1;
+
     
     public GameMainJPanel() {
         init();
+        // 新增：支持键盘切换植物卡片
+        setFocusable(true);
+        addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent e) {
+                int key = e.getKeyCode();
+                if (key == java.awt.event.KeyEvent.VK_1) {
+                    selectedPlantIndex = 0;
+                    repaint();
+                } else if (key == java.awt.event.KeyEvent.VK_2) {
+                    selectedPlantIndex = 1;
+                    repaint();
+                } else if (key == java.awt.event.KeyEvent.VK_3) {
+                    selectedPlantIndex = 2;
+                    repaint();
+                }
+            }
+        });
     }
 
     public void init() {
@@ -61,7 +91,93 @@ public class GameMainJPanel extends JPanel implements Runnable {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 requestFocusInWindow();
+                int startX = 130;
+                int startY = 10;
+                int cardWidth = 60;
+                int cardHeight = 60; // 拉长卡片高度
+                int spacing = 5;
+                int mx = e.getX();
+                int my = e.getY();
+                for (int i = 0; i < 3; i++) {
+                    int x = startX + i * (cardWidth + spacing);
+                    if (mx >= x && mx <= x + cardWidth && my >= startY && my <= startY + cardHeight) {
+                        selectedPlantIndex = i;
+                        repaint();
+                        break;
+                    }
+                }
+                // 判断是否点击在草坪区域
+                if (mx > GameConfig.GRID_START_X && my > GameConfig.GRID_START_Y) {
+                    int gridX = (mx - GameConfig.GRID_START_X) / GameConfig.GRID_WIDTH;
+                    int gridY = (my - GameConfig.GRID_START_Y) / GameConfig.GRID_HEIGHT;
+                    // 优先处理铲子模式
+                    if (shovelManager.isShovelActive()) {
+                        boolean used = shovelManager.useShovel(gridX, gridY);
+                        if (used) {
+                            // 移除该格子的植物
+                            List<ElementObj> plants = em.getElementsByKey(GameElement.PLANTS);
+                            ElementObj toRemove = null;
+                            for (ElementObj plant : plants) {
+                                // 判断植物是否在该格子
+                                int px = (plant.getX() - GameConfig.GRID_START_X) / GameConfig.GRID_WIDTH;
+                                int py = (plant.getY() - GameConfig.GRID_START_Y) / GameConfig.GRID_HEIGHT;
+                                if (px == gridX && py == gridY) {
+                                    toRemove = plant;
+                                    break;
+                                }
+                            }
+                            if (toRemove != null) {
+                                plants.remove(toRemove);
+                                // 可选：播放铲除特效
+                            }
+                            repaint();
+                            return;
+                        }
+                    }
+                    // 铲子未激活时才进行种植
+                    if (selectedPlantIndex != -1) {
+                        String[] plantTypes = {"peashooter", "sunflower", "wallnut"};
+                        if (sunManager.hasEnoughSun(Integer.parseInt(new String[]{"100","50","50"}[selectedPlantIndex]))) {
+                            em.addElement(
+                                com.tedu.manager.GameLoad.createPlant(plantTypes[selectedPlantIndex], gridX, gridY),
+                                GameElement.PLANTS
+                            );
+                            sunManager.spendSun(Integer.parseInt(new String[]{"100","50","50"}[selectedPlantIndex]));
+                            repaint();
+                        }
+                    }
+                }
                 System.out.println("面板通过鼠标点击获得焦点");
+            }
+        });
+
+        // 鼠标悬停收集阳光
+        addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int mx = e.getX();
+                int my = e.getY();
+                // 阳光收集逻辑
+                List<ElementObj> suns = em.getElementsByKey(GameElement.SUNS);
+                for (ElementObj obj : suns) {
+                    if (obj instanceof Sun) {
+                        Sun sun = (Sun) obj;
+                        if (!sun.isCollected() && mx >= sun.getX() && mx <= sun.getX() + sun.getW()
+                                && my >= sun.getY() && my <= sun.getY() + sun.getH()) {
+                            sun.collect();
+                            sunManager.addSun(sun.getValue());
+                        }
+                    }
+                }
+                // 草坪高亮逻辑
+                if (mx > GameConfig.GRID_START_X && my > GameConfig.GRID_START_Y) {
+                    hoverGridX = (mx - GameConfig.GRID_START_X) / GameConfig.GRID_WIDTH;
+                    hoverGridY = (my - GameConfig.GRID_START_Y) / GameConfig.GRID_HEIGHT;
+                } else {
+                    hoverGridX = -1;
+                    hoverGridY = -1;
+                }
+                repaint();
             }
         });
 
@@ -90,6 +206,17 @@ public class GameMainJPanel extends JPanel implements Runnable {
         // 绘制网格
         if (showGrid) {
             drawGrid(g2d);
+        }
+
+        // 新增：高亮鼠标悬停的草坪格子
+        if (hoverGridX >= 0 && hoverGridY >= 0 && hoverGridX < GameConfig.GRID_COLS && hoverGridY < GameConfig.GRID_ROWS) {
+            int hx = GameConfig.GRID_START_X + hoverGridX * GameConfig.GRID_WIDTH;
+            int hy = GameConfig.GRID_START_Y + hoverGridY * GameConfig.GRID_HEIGHT;
+            g2d.setColor(new Color(255, 255, 0, 80)); // 半透明黄色
+            g2d.fillRect(hx, hy, GameConfig.GRID_WIDTH, GameConfig.GRID_HEIGHT);
+            g2d.setColor(new Color(255, 200, 0, 180));
+            g2d.setStroke(new BasicStroke(2));
+            g2d.drawRect(hx, hy, GameConfig.GRID_WIDTH, GameConfig.GRID_HEIGHT);
         }
 
         // 绘制所有游戏元素
@@ -228,21 +355,23 @@ public class GameMainJPanel extends JPanel implements Runnable {
         int startX = 130;
         int startY = 10;
         int cardWidth = 60;
-        int cardHeight = 40;
+        int cardHeight = 60; // 拉长卡片高度
         int spacing = 5;
 
         String[] plants = {"豌豆射手", "向日葵", "坚果墙"};
         String[] plantTypes = {"peashooter", "sunflower", "wallnut"};
         String[] costs = {"100", "50", "50"};
         String[] keys = {"1", "2", "3"};
+        String[] cardImgKeys = {"peashooter_idle_card", "sunflower_idle_card", "wallnut_full_card"};
 
         for (int i = 0; i < plants.length; i++) {
             int x = startX + i * (cardWidth + spacing);
-            int cost = Integer.parseInt(costs[i]);
-            boolean canAfford = sunManager.hasEnoughSun(cost);
+            boolean canAfford = sunManager.hasEnoughSun(Integer.parseInt(costs[i]));
 
             // 卡片背景
-            if (canAfford) {
+            if (selectedPlantIndex == i) {
+                g2d.setColor(new Color(255, 215, 0, 220)); // 选中高亮
+            } else if (canAfford) {
                 g2d.setColor(new Color(139, 69, 19, 200));
             } else {
                 g2d.setColor(new Color(100, 100, 100, 200));
@@ -254,19 +383,30 @@ public class GameMainJPanel extends JPanel implements Runnable {
             g2d.setStroke(new BasicStroke(1));
             g2d.drawRoundRect(x, startY, cardWidth, cardHeight, 5, 5);
 
-            // 快捷键提示
-            g2d.setColor(canAfford ? Color.WHITE : Color.LIGHT_GRAY);
-            g2d.setFont(FontHelper.getChineseFont(Font.BOLD, 10));
-            g2d.drawString(keys[i], x + 5, startY + 12);
+            // 卡片图片
+            ImageIcon cardIcon = GameLoad.imgMap.get(cardImgKeys[i]);
+            if (cardIcon != null) {
+                int imgW = 32, imgH = 32;
+                int imgX = x + (cardWidth - imgW) / 2;
+                int imgY = startY + 6;
+                g2d.drawImage(cardIcon.getImage(), imgX, imgY, imgW, imgH, null);
+            }
 
-            // 植物名称 - 使用FontHelper
-            g2d.setFont(FontHelper.getChineseFont(Font.PLAIN, 8));
-            g2d.drawString(plants[i], x + 5, startY + 25);
+            // 植物名称显示在图片下方，且在卡片背景内
+            g2d.setFont(FontHelper.getChineseFont(Font.PLAIN, 9)); // 字体再小一点
+            g2d.setColor(canAfford ? Color.WHITE : Color.LIGHT_GRAY);
+            int nameY = startY + 6 + 32 + 16; // 图片下方留16像素
+            int nameX = x + (cardWidth - g2d.getFontMetrics().stringWidth(plants[i])) / 2 + 12; // 再右移6像素
+            g2d.drawString(plants[i], nameX, nameY);
+
+            // 快捷键提示
+            g2d.setFont(FontHelper.getChineseFont(Font.BOLD, 10));
+            g2d.drawString(keys[i], x + 5, startY + 16);
 
             // 花费
             g2d.setColor(canAfford ? Color.YELLOW : Color.GRAY);
-            g2d.setFont(FontHelper.getChineseFont(Font.PLAIN, 8));
-            g2d.drawString(costs[i], x + 5, startY + 37);
+            g2d.setFont(FontHelper.getChineseFont(Font.PLAIN, 10));
+            g2d.drawString(costs[i], x + 5, startY + cardHeight - 8);
         }
     }
 
@@ -314,7 +454,7 @@ public class GameMainJPanel extends JPanel implements Runnable {
         if (waveManager.isGameWon()) {
             g2d.setColor(Color.GREEN);
             g2d.setFont(FontHelper.getBoldChineseFont(24));
-            g2d.drawString("🎉 获胜！", getWidth() - 150, 50);
+            g2d.drawString("�� 获胜！", getWidth() - 150, 50);
         } else if (waveManager.isWaveInProgress()) {
             g2d.setColor(Color.RED);
             g2d.drawString("波次进行中...", getWidth() - 150, 50);
@@ -328,8 +468,8 @@ public class GameMainJPanel extends JPanel implements Runnable {
      * 绘制波次进度条 - 修复中文显示
      */
     private void drawWaveProgress(Graphics2D g2d) {
-        int progressX = 10;
-        int progressY = 60;
+        int progressX = 520; // 再右侧一点，用户指定
+        int progressY = 10;
         int progressWidth = 200;
         int progressHeight = 20;
 
