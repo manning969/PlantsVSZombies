@@ -101,6 +101,11 @@ public class NormalZombie extends Zombie {
                 newIcon = GameLoad.imgMap.get(iconKey);
                 logMessage = "🍽️ 切换到啃食动画";
                 break;
+            case DYING:
+                iconKey = "normal_dying";
+                newIcon = GameLoad.imgMap.get(iconKey);
+                logMessage = "💥 切换到dying动画";
+                break;
             case DIE:
                 iconKey = "normal_die";
                 newIcon = GameLoad.imgMap.get(iconKey);

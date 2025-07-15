@@ -186,7 +186,7 @@ public class LawnMower extends ElementObj {
                     zombie.getRowIndex() == this.rowIndex &&
                     CollisionDetector.isColliding(this, zombie)) {
                     System.out.println("小推车在行 " + rowIndex + " 碾压僵尸: " + zombie.getClass().getSimpleName());
-                    zombie.die(); // 调用僵尸的die方法，僵尸将进入死亡动画状态
+                    zombie.die(true); // 调用僵尸的die(true)方法，直接died动画
                 }
             }
         }

@@ -24,11 +24,15 @@ public abstract class Zombie extends ElementObj {
     protected int dieAnimationXOffset = 0;
     // 新增：死亡动画时的Y偏移
     protected int dieAnimationYOffset = 0;
+    // dying动画的额外宽度和偏移
+    protected int dyingAnimationExtraWidth = 70;
+    protected int dyingAnimationXOffset = -25;
 
     // 僵尸动画状态枚举
     public enum ZombieAnimationState {
         WALK,
         EAT,
+        DYING, // 新增dying状态
         DIE
     }
 
@@ -39,6 +43,9 @@ public abstract class Zombie extends ElementObj {
     // 死亡动画持续时间（毫秒）
     protected static final long DEFAULT_DIE_ANIMATION_DURATION = 1500; // 1.5秒
     protected long dieAnimationDuration = DEFAULT_DIE_ANIMATION_DURATION;
+    // 新增dying动画持续时间（毫秒）
+    protected static final long DEFAULT_DYING_ANIMATION_DURATION = 900; // 0.9秒
+    protected long dyingAnimationDuration = DEFAULT_DYING_ANIMATION_DURATION;
 
     // 死亡标记 - 用于更严格的状态控制
     private boolean isDying = false;
@@ -99,16 +106,45 @@ public abstract class Zombie extends ElementObj {
 
     @Override
     public final void model(long gameTime) {
-        // *** 核心修复：死亡状态下只处理动画，不执行任何其他逻辑 ***
+        // 死亡流程：dying->die
+        if (currentAnimationState == ZombieAnimationState.DYING) {
+            long timeInDyingState = System.currentTimeMillis() - animationStateStartTime;
+            // dying动画只在刚切换时调整宽度和偏移
+            if (timeInDyingState < 200 && timeInDyingState >= 0) {
+                int targetWidth = GameConfig.ZOMBIE_WIDTH + dyingAnimationExtraWidth;
+                int targetHeight = GameConfig.ZOMBIE_HEIGHT;
+                if (this.getW() != targetWidth || this.getH() != targetHeight) {
+                    int originalX = this.getX();
+                    int originalY = this.getY();
+                    this.setW(targetWidth);
+                    this.setH(targetHeight);
+                    this.setX(originalX + dyingAnimationXOffset);
+                    // Y轴偏移如有需要可加
+                }
+            }
+            // dying动画期间也要移动
+            move();
+            updateImage();
+            if (timeInDyingState >= dyingAnimationDuration) {
+                // 切换到died动画时恢复宽度
+                int targetWidth = GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth;
+                int targetHeight = GameConfig.ZOMBIE_HEIGHT + dieAnimationExtraHeight;
+                this.setW(targetWidth);
+                this.setH(targetHeight);
+                this.setX(this.getX() + dieAnimationXOffset - dyingAnimationXOffset); // 保证切换时位置平滑
+                setAnimationState(ZombieAnimationState.DIE);
+            }
+            return;
+        }
         if (currentAnimationState == ZombieAnimationState.DIE) {
             handleDeathAnimation(gameTime);
-            return; // 直接返回，不执行任何移动或攻击逻辑
+            return;
         }
 
         // *** 额外保护：如果僵尸已标记为死亡，但状态还未切换，强制切换 ***
-        if (isDying && currentAnimationState != ZombieAnimationState.DIE) {
-            System.out.println("⚠️  强制切换僵尸到死亡状态: " + this.getClass().getSimpleName());
-            setAnimationState(ZombieAnimationState.DIE);
+        if (isDying && currentAnimationState != ZombieAnimationState.DYING && currentAnimationState != ZombieAnimationState.DIE) {
+            System.out.println("⚠️  强制切换僵尸到dying状态: " + this.getClass().getSimpleName());
+            setAnimationState(ZombieAnimationState.DYING);
             return;
         }
 
@@ -198,8 +234,8 @@ public abstract class Zombie extends ElementObj {
 
     @Override
     protected void move() {
-        // *** 重要：移动前再次检查状态，防止死亡僵尸移动 ***
-        if (currentAnimationState == ZombieAnimationState.DIE || isDying) {
+        // 只在DIE状态下禁止移动，dying期间允许移动
+        if (currentAnimationState == ZombieAnimationState.DIE) {
             return;
         }
         this.setX(this.getX() - speed);
@@ -273,21 +309,16 @@ public abstract class Zombie extends ElementObj {
     }
 
     /**
-     * 僵尸死亡方法 - 改进的死亡处理
+     * 僵尸死亡方法 - 支持跳过dying动画（如小推车击杀）
      */
-    @Override
-    public void die() {
+    public void die(boolean skipDying) {
         if (isDying) {
             return; // 防止重复调用
         }
-
         this.isDying = true;
-        
-        // 立即停止所有行为
         this.isEating = false;
         this.target = null;
-        
-        // 新增：添加头掉落动画
+        // 头掉落动画：无论是否小推车击杀都要加
         try {
             com.tedu.manager.ElementManager.getManager().addElement(
                 new com.tedu.element.effects.HeadDropEffect(
@@ -298,11 +329,18 @@ public abstract class Zombie extends ElementObj {
         } catch (Exception e) {
             System.err.println("[HeadDropEffect] 添加失败: " + e.getMessage());
         }
+        if (skipDying) {
+            setAnimationState(ZombieAnimationState.DIE);
+            System.out.println("\uD83D\uDC80 " + this.getClass().getSimpleName() + " 被小推车击杀，直接died动画");
+        } else {
+            setAnimationState(ZombieAnimationState.DYING);
+            System.out.println("\uD83D\uDC80 " + this.getClass().getSimpleName() + " 在行" + rowIndex + " 死亡！（dying->die流程）");
+        }
+    }
 
-        // 切换到死亡动画状态
-        setAnimationState(ZombieAnimationState.DIE);
-        
-        System.out.println("\uD83D\uDC80 " + this.getClass().getSimpleName() + " 在行" + rowIndex + " 死亡！");
+    @Override
+    public void die() {
+        die(false); // 默认普通死亡流程
     }
 
     /**
