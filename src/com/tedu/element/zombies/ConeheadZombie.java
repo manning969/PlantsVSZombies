@@ -7,6 +7,7 @@ import com.tedu.manager.ElementManager;
 import com.tedu.manager.GameElement;
 import com.tedu.manager.GameLoad;
 import com.tedu.utils.GameConfig;
+import com.tedu.utils.ConfigLoader;
 import java.util.List;
 import javax.swing.ImageIcon;
 
@@ -31,22 +32,23 @@ public class ConeheadZombie extends Zombie {
     }
 
     public ConeheadZombie(int rowIndex) {
-        super(GameConfig.GAME_WIDTH,
-              GameConfig.GRID_START_Y + rowIndex * GameConfig.GRID_HEIGHT + GameConfig.ZOMBIE_OFFSET_Y,
-              rowIndex,
-              CONEHEAD_ZOMBIE_HP,
-              GameConfig.ZOMBIE_SPEED,
-              CONEHEAD_ZOMBIE_DAMAGE,
-              GameLoad.imgMap.get("conehead_walk"));
+        super(
+            GameConfig.GAME_WIDTH,
+            GameConfig.GRID_START_Y + rowIndex * GameConfig.GRID_HEIGHT + GameConfig.ZOMBIE_OFFSET_Y,
+            rowIndex,
+            ConfigLoader.getZombieInt("conehead.hp", 700),
+            ConfigLoader.getZombieInt("conehead.speed", GameConfig.ZOMBIE_SPEED),
+            ConfigLoader.getZombieInt("conehead.damage", 15),
+            GameLoad.imgMap.getOrDefault(
+                "conehead_walk",
+                new ImageIcon(ConfigLoader.getZombieProperty("conehead.img_walk"))
+            )
+        );
         this.lastAttackTime = 0;
         this.lastMoveTime = 0;
         this.dieAnimationDuration = DEFAULT_DIE_ANIMATION_DURATION + 200;
-        
-        // 设置死亡动画的额外宽度 - 路障僵尸死亡动画更宽一些
-        this.dieAnimationExtraWidth = 70; // 比普通僵尸更宽
-        // 可选：设置X轴偏移，让动画居中显示
-        this.dieAnimationXOffset = -25; // 向左偏移25像素来居中
-        
+        this.dieAnimationExtraWidth = 70;
+        this.dieAnimationXOffset = -25;
         System.out.println("✅ 路障僵尸创建，死亡动画宽度设置为: " + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth));
     }
 
@@ -92,43 +94,52 @@ public class ConeheadZombie extends Zombie {
         ImageIcon newIcon = null;
         String logMessage = "";
         String iconKey = "";
-
         switch (currentAnimationState) {
             case WALK:
                 iconKey = "conehead_walk";
-                newIcon = GameLoad.imgMap.get(iconKey);
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    iconKey,
+                    new ImageIcon(ConfigLoader.getZombieProperty("conehead.img_walk"))
+                );
                 logMessage = "🚶 切换到走路动画";
                 break;
             case EAT:
                 iconKey = "conehead_eat";
-                newIcon = GameLoad.imgMap.get(iconKey);
-                logMessage = "🍽️ 切换到啃食动画";
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    iconKey,
+                    new ImageIcon(ConfigLoader.getZombieProperty("conehead.img_eat"))
+                );
+                logMessage = "🍽️ 切换到吃动画";
                 break;
             case DIE:
                 iconKey = "conehead_die";
-                newIcon = GameLoad.imgMap.get(iconKey);
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    iconKey,
+                    new ImageIcon(ConfigLoader.getZombieProperty("conehead.img_die"))
+                );
                 logMessage = "💀 切换到死亡动画 (宽度: " + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth) + ")";
                 break;
             default:
                 iconKey = "conehead_walk";
-                newIcon = GameLoad.imgMap.get(iconKey);
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    iconKey,
+                    new ImageIcon(ConfigLoader.getZombieProperty("conehead.img_walk"))
+                );
                 logMessage = "❓ 未知状态，默认走路动画";
                 break;
         }
-
-        // 检查图片是否成功加载
         if (newIcon == null) {
             System.err.println("❌ 无法加载图片: " + iconKey + " (状态: " + currentAnimationState + ")");
-            // 使用备用图片
             if (currentAnimationState == ZombieAnimationState.DIE) {
-                newIcon = GameLoad.imgMap.get("conehead_walk"); // 使用走路图片作为备用
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    "conehead_walk",
+                    new ImageIcon(ConfigLoader.getZombieProperty("conehead.img_walk"))
+                );
                 if (newIcon != null) {
                     System.out.println("🔄 使用备用图片: conehead_walk 代替 conehead_die");
                 }
             }
         }
-
-        // 只有当图片不同时才更新
         if (newIcon != null && this.getIcon() != newIcon) {
             this.setIcon(newIcon);
             System.out.println("🎭 " + this.getClass().getSimpleName() + " " + logMessage + " (图片: " + iconKey + ")");

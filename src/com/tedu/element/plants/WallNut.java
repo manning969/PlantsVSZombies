@@ -5,6 +5,7 @@ import com.tedu.element.Plant;
 import com.tedu.element.ElementObj;
 import com.tedu.manager.GameLoad;
 import com.tedu.utils.GameConfig;
+import com.tedu.utils.ConfigLoader;
 
 /**
  * 坚果墙 - 防御型植物，血量高，用于阻挡僵尸
@@ -20,9 +21,17 @@ public class WallNut extends Plant {
     }
     
     public WallNut(int gridX, int gridY) {
-        super(gridX, gridY, 200, GameConfig.WALLNUT_COST, // 增加血量到4000，更耐打
-              GameLoad.imgMap.get("wallnut_full"));
-        this.maxHp = 200;
+        super(
+            gridX,
+            gridY,
+            ConfigLoader.getPlantInt("wallnut.hp", 200),
+            ConfigLoader.getPlantInt("wallnut.price", 50),
+            GameLoad.imgMap.getOrDefault(
+                "wallnut_full",
+                new ImageIcon(ConfigLoader.getPlantProperty("wallnut.img_full"))
+            )
+        );
+        this.maxHp = ConfigLoader.getPlantInt("wallnut.hp", 200);
         this.currentState = "full";
     }
     
@@ -70,13 +79,22 @@ public class WallNut extends Plant {
             
             switch (currentState) {
                 case "full":
-                    newIcon = GameLoad.imgMap.get("wallnut_full");
+                    newIcon = GameLoad.imgMap.getOrDefault(
+                        "wallnut_full",
+                        new ImageIcon(ConfigLoader.getPlantProperty("wallnut.img_full"))
+                    );
                     break;
                 case "cracked1":
-                    newIcon = GameLoad.imgMap.get("wallnut_cracked1");
+                    newIcon = GameLoad.imgMap.getOrDefault(
+                        "wallnut_cracked1",
+                        new ImageIcon(ConfigLoader.getPlantProperty("wallnut.img_cracked1"))
+                    );
                     break;
                 case "cracked2":
-                    newIcon = GameLoad.imgMap.get("wallnut_cracked2");
+                    newIcon = GameLoad.imgMap.getOrDefault(
+                        "wallnut_cracked2",
+                        new ImageIcon(ConfigLoader.getPlantProperty("wallnut.img_cracked2"))
+                    );
                     break;
             }
             

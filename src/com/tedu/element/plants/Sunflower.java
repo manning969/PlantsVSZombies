@@ -7,6 +7,7 @@ import com.tedu.manager.ElementManager;
 import com.tedu.manager.GameElement;
 import com.tedu.manager.GameLoad;
 import com.tedu.utils.GameConfig;
+import com.tedu.utils.ConfigLoader;
 
 /**
  * 向日葵 - 生产阳光的植物
@@ -20,8 +21,16 @@ public class Sunflower extends Plant {
     }
     
     public Sunflower(int gridX, int gridY) {
-        super(gridX, gridY, 80, GameConfig.SUNFLOWER_COST, 
-              GameLoad.imgMap.get("sunflower_idle"));
+        super(
+            gridX,
+            gridY,
+            ConfigLoader.getPlantInt("sunflower.hp", 80),
+            ConfigLoader.getPlantInt("sunflower.price", 50),
+            GameLoad.imgMap.getOrDefault(
+                "sunflower_idle",
+                new ImageIcon(ConfigLoader.getPlantProperty("sunflower.img_idle"))
+            )
+        );
     }
     
     @Override
@@ -36,8 +45,9 @@ public class Sunflower extends Plant {
     
     @Override
     protected void performAction(long gameTime) {
-        // 检查是否可以生产阳光
-        if (canPerformAction(gameTime, SUN_PRODUCE_INTERVAL)) {
+        // 通过配置文件读取产阳光间隔
+        int produceInterval = ConfigLoader.getPlantInt("sunflower.produce_interval", 2000);
+        if (canPerformAction(gameTime, produceInterval)) {
             produceSun();
             lastActionTime = gameTime;
         }

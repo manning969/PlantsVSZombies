@@ -8,6 +8,7 @@ import com.tedu.manager.ElementManager;
 import com.tedu.manager.GameElement;
 import com.tedu.manager.GameLoad;
 import com.tedu.utils.GameConfig;
+import com.tedu.utils.ConfigLoader;
 import java.util.List;
 
 /**
@@ -26,8 +27,17 @@ public class Peashooter extends Plant {
     }
 
     public Peashooter(int gridX, int gridY) {
-        super(gridX, gridY, 100, GameConfig.PEASHOOTER_COST,
-              GameLoad.imgMap.get("peashooter_idle")); // 初始设置为待机动画
+        // 通过ConfigLoader读取所有参数，保证灵活可配置
+        super(
+            gridX,
+            gridY,
+            ConfigLoader.getPlantInt("peashooter.hp", 100), // 生命值
+            ConfigLoader.getPlantInt("peashooter.price", 100), // 价格
+            GameLoad.imgMap.getOrDefault(
+                "peashooter_idle",
+                new ImageIcon(ConfigLoader.getPlantProperty("peashooter.img_idle"))
+            ) // 初始动画
+        );
         this.currentIconIsAttacking = false;
     }
 
@@ -45,15 +55,18 @@ public class Peashooter extends Plant {
     protected void performAction(long gameTime) {
         boolean zombiePresent = hasZombieInRow(); // 检查是否有僵尸
 
-        // 检查是否可以射击
-        if (canPerformAction(gameTime, GameConfig.SHOOT_INTERVAL)) {
-            // 检查本行是否有僵尸
+        // 通过配置文件读取射击间隔
+        int shootInterval = ConfigLoader.getPlantInt("peashooter.cooldown", GameConfig.SHOOT_INTERVAL);
+        if (canPerformAction(gameTime, shootInterval)) {
             if (zombiePresent) {
                 shoot();
                 lastActionTime = gameTime;
-                // 当射击时，立即切换到攻击动画
+                // 切换到攻击动画
                 if (!currentIconIsAttacking) {
-                    this.setIcon(GameLoad.imgMap.get("peashooter_attack"));
+                    this.setIcon(GameLoad.imgMap.getOrDefault(
+                        "peashooter_attack",
+                        new ImageIcon(ConfigLoader.getPlantProperty("peashooter.img_attack"))
+                    ));
                     currentIconIsAttacking = true;
                     System.out.println("豌豆射手切换到攻击动画");
                 }

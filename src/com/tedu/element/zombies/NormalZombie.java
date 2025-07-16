@@ -7,6 +7,7 @@ import com.tedu.manager.ElementManager;
 import com.tedu.manager.GameElement;
 import com.tedu.manager.GameLoad;
 import com.tedu.utils.GameConfig;
+import com.tedu.utils.ConfigLoader;
 import java.util.List;
 import javax.swing.ImageIcon;
 
@@ -28,22 +29,23 @@ public class NormalZombie extends Zombie {
     }
 
     public NormalZombie(int rowIndex) {
-        super(GameConfig.GAME_WIDTH,
-              GameConfig.GRID_START_Y + rowIndex * GameConfig.GRID_HEIGHT + GameConfig.ZOMBIE_OFFSET_Y,
-              rowIndex,
-              GameConfig.NORMAL_ZOMBIE_HP,
-              GameConfig.ZOMBIE_SPEED,
-              GameConfig.NORMAL_ZOMBIE_DAMAGE,
-              GameLoad.imgMap.get("normal_walk"));
+        super(
+            GameConfig.GAME_WIDTH,
+            GameConfig.GRID_START_Y + rowIndex * GameConfig.GRID_HEIGHT + GameConfig.ZOMBIE_OFFSET_Y,
+            rowIndex,
+            ConfigLoader.getZombieInt("normal.hp", GameConfig.NORMAL_ZOMBIE_HP),
+            ConfigLoader.getZombieInt("normal.speed", GameConfig.ZOMBIE_SPEED),
+            ConfigLoader.getZombieInt("normal.damage", GameConfig.NORMAL_ZOMBIE_DAMAGE),
+            GameLoad.imgMap.getOrDefault(
+                "normal_walk",
+                new ImageIcon(ConfigLoader.getZombieProperty("normal.img_walk"))
+            )
+        );
         this.lastAttackTime = 0;
         this.lastMoveTime = 0;
         this.dieAnimationDuration = DEFAULT_DIE_ANIMATION_DURATION;
-        
-        // 设置死亡动画的额外宽度 - 比正常宽度多50像素
         this.dieAnimationExtraWidth = 70;
-        // 可选：设置X轴偏移，让动画居中显示
-        this.dieAnimationXOffset = -25; // 向左偏移25像素来居中
-        
+        this.dieAnimationXOffset = -25;
         System.out.println("✅ 普通僵尸创建，死亡动画宽度设置为: " + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth));
     }
 
@@ -89,48 +91,60 @@ public class NormalZombie extends Zombie {
         ImageIcon newIcon = null;
         String logMessage = "";
         String iconKey = "";
-
         switch (currentAnimationState) {
             case WALK:
                 iconKey = "normal_walk";
-                newIcon = GameLoad.imgMap.get(iconKey);
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    iconKey,
+                    new ImageIcon(ConfigLoader.getZombieProperty("normal.img_walk"))
+                );
                 logMessage = "🚶 切换到走路动画";
                 break;
             case EAT:
                 iconKey = "normal_eat";
-                newIcon = GameLoad.imgMap.get(iconKey);
-                logMessage = "🍽️ 切换到啃食动画";
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    iconKey,
+                    new ImageIcon(ConfigLoader.getZombieProperty("normal.img_eat"))
+                );
+                logMessage = "🍽️ 切换到吃动画";
                 break;
             case DYING:
                 iconKey = "normal_dying";
-                newIcon = GameLoad.imgMap.get(iconKey);
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    iconKey,
+                    new ImageIcon(ConfigLoader.getZombieProperty("normal.img_dying"))
+                );
                 logMessage = "💥 切换到dying动画";
                 break;
             case DIE:
                 iconKey = "normal_die";
-                newIcon = GameLoad.imgMap.get(iconKey);
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    iconKey,
+                    new ImageIcon(ConfigLoader.getZombieProperty("normal.img_die"))
+                );
                 logMessage = "💀 切换到死亡动画 (宽度: " + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth) + ")";
                 break;
             default:
                 iconKey = "normal_walk";
-                newIcon = GameLoad.imgMap.get(iconKey);
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    iconKey,
+                    new ImageIcon(ConfigLoader.getZombieProperty("normal.img_walk"))
+                );
                 logMessage = "❓ 未知状态，默认走路动画";
                 break;
         }
-
-        // 检查图片是否成功加载
         if (newIcon == null) {
             System.err.println("❌ 无法加载图片: " + iconKey + " (状态: " + currentAnimationState + ")");
-            // 使用备用图片
             if (currentAnimationState == ZombieAnimationState.DIE) {
-                newIcon = GameLoad.imgMap.get("normal_walk"); // 使用走路图片作为备用
+                newIcon = GameLoad.imgMap.getOrDefault(
+                    "normal_walk",
+                    new ImageIcon(ConfigLoader.getZombieProperty("normal.img_walk"))
+                );
                 if (newIcon != null) {
                     System.out.println("🔄 使用备用图片: normal_walk 代替 normal_die");
                 }
             }
         }
-
-        // 只有当图片不同时才更新
         if (newIcon != null && this.getIcon() != newIcon) {
             this.setIcon(newIcon);
             System.out.println("🎭 " + this.getClass().getSimpleName() + " " + logMessage + " (图片: " + iconKey + ")");
