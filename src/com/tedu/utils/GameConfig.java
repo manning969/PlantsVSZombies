@@ -1,7 +1,9 @@
 package com.tedu.utils;
 
+import java.awt.Rectangle;
+
 /**
- * 游戏配置常量类 - 修复版本 (新增小推车配置)
+ * 游戏配置常量类 - 修复版本 (新增小推车配置和游戏速度控制)
  */
 public class GameConfig {
     // 游戏窗口设置
@@ -47,7 +49,7 @@ public class GameConfig {
     // 阳光相关配置
     public static final long NATURAL_SUN_INTERVAL = 10000; // 自然阳光间隔（10秒）
     public static final int NATURAL_SUN_AMOUNT = 25; // 自然阳光数量
-    public static final long SUNFLOWER_PRODUCE_INTERVAL = 200000; // 向日葵产阳光间隔（20秒）
+    public static final long SUNFLOWER_PRODUCE_INTERVAL = 20000; // 向日葵产阳光间隔（20秒）
     public static final int SUNFLOWER_SUN_AMOUNT = 50; // 向日葵产生的阳光数量
     public static final long SUN_COLLECTION_COOLDOWN = 100; // 阳光收集冷却时间（0.1秒）
 
@@ -61,27 +63,53 @@ public class GameConfig {
     public static final int SUNFLOWER_COST = 50;
     public static final int WALLNUT_COST = 50;
 
+    // 植物铲除返还配置
+    public static final double PLANT_REFUND_RATE = 0.5; // 返还50%的原价
+    public static final int MIN_REFUND_AMOUNT = 10;     // 最小返还金额
+    public static final int MAX_REFUND_AMOUNT = 100;     // 最大返还金额
+    public static final boolean ENABLE_PLANT_REFUND = true; // 是否启用返还系统
+    
     // 游戏机制
     public static final int SHOOT_INTERVAL = 1600;   // 射击间隔(游戏帧)
     public static final int SUN_PRODUCE_INTERVAL = 2000; // 阳光生产间隔
 
     // 僵尸血量
     public static final int NORMAL_ZOMBIE_HP = 100;
-    public static final int CONEHEAD_ZOMBIE_HP = 200;
-    public static final int BUCKETHEAD_ZOMBIE_HP = 500;
+    public static final int CONEHEAD_ZOMBIE_HP = 120;
+    public static final int BUCKETHEAD_ZOMBIE_HP = 150;
 
     // 僵尸移动频率控制
     public static final int ZOMBIE_MOVE_INTERVAL = 5;  // 每8帧移动1次，降低移动频率
 
+    public static final boolean ENABLE_ZOMBIE_KILL_REWARD = true; // 是否启用击杀奖励
+    public static final int ZOMBIE_KILL_BASE_REWARD = 10;         // 基础击杀奖励
+    public static final int NORMAL_ZOMBIE_REWARD = 10;           // 普通僵尸奖励
+    public static final int CONEHEAD_ZOMBIE_REWARD = 15;         // 路障僵尸奖励  
+    public static final int BUCKETHEAD_ZOMBIE_REWARD = 25;       // 铁桶僵尸奖励
+    
     // 小推车配置
     public static final int LAWN_MOWER_WIDTH = 70;  // 小推车宽度 (根据图片调整)
     public static final int LAWN_MOWER_HEIGHT = 70; // 小推车高度 (根据图片调整)
     public static final int LAWN_MOWER_SPEED = 5;   // 小推车移动速度
     // 小推车起始X坐标，通常在房子区域的最右侧
     public static final int LAWN_MOWER_START_X = 100; // 或者 100 左右，确保在房子区域可见
-	
     
-    public static final int GAME_FPS_MS = 0;
+    // 游戏速度配置
+    public static final int NORMAL_SPEED = 1;
+    public static final int FAST_SPEED = 2;
+    public static int currentSpeed = NORMAL_SPEED;
+    public static float TIME_SCALE = 1.0f; // 可动态调整的游戏速度（支持小数）
+
+    // 时间缩放因子（基于long类型）
+    public static long getTimeScaleFactor() {
+        return currentSpeed * 1000L; // 转换为毫秒因子
+    }
     
-    public static final int DEFAULT_DIE_ANIMATION_DURATION = 300;
+    // 加速按钮位置和尺寸
+    public static final int SPEED_BUTTON_X = 335; // 加速按钮X坐标
+    public static final int SPEED_BUTTON_Y = 12;  // 加速按钮Y坐标
+    public static final int SPEED_BUTTON_SIZE = 40; // 按钮大小
+    
+    public static final String SPEED_BUTTON_NORMAL = "speed_button_normal";
+    public static final String SPEED_BUTTON_DOUBLE = "speed_button_double";
 }

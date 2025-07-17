@@ -205,6 +205,11 @@ public class NormalZombie extends Zombie {
     }
 
     @Override
+    protected String getZombieType() {
+        return "normal";
+    }
+    
+    @Override
     public void die() {
         super.die();
         System.out.println("💀 普通僵尸在行" + rowIndex + "被击败。");

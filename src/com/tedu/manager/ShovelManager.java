@@ -415,17 +415,174 @@ public class ShovelManager {
      * 使用铲子铲除植物
      */
     public boolean useShovel(int gridX, int gridY) {
-        if (currentState != ShovelState.ACTIVE) {
-            return false; // 铲子未激活
+	    if (currentState != ShovelState.ACTIVE) {
+	        return false; // 铲子未激活
+	    }
+	    
+	    // 查找指定网格位置的植物
+	    com.tedu.element.Plant plant = findPlantAtGrid(gridX, gridY);
+	    if (plant != null) {
+	        return useShovelWithRefund(plant);
+	    } else {
+	        System.out.println("⚠️ 网格 (" + gridX + "," + gridY + ") 没有找到植物");
+	        return false;
+	    }
+	}
+    
+    /**
+	 * 使用铲子铲除植物并返还金币
+	 */
+    private boolean useShovelWithRefund(com.tedu.element.Plant plant) {
+        System.out.println("=== 铲除植物调试开始 ===");
+        
+        if (plant == null) {
+            System.out.println("❌ 调试：植物对象为null");
+            return false;
         }
         
-        System.out.println("🔧 使用铲子铲除植物在网格 (" + gridX + "," + gridY + ")");
+        if (!plant.isLive()) {
+            System.out.println("❌ 调试：植物已死亡，isLive=" + plant.isLive());
+            return false;
+        }
         
-        // 铲除成功后可以选择自动取消激活铲子
-        // deactivateShovel();
+        // 获取植物信息
+        String className = plant.getClass().getSimpleName();
+        String plantType = getPlantType(plant);
+        String plantDisplayName = PlantManager.getPlantDisplayName(plantType);
+        int plantX = plant.getX();
+        int plantY = plant.getY();
         
+        System.out.println("🔍 调试信息：");
+        System.out.println("  - 植物类名: " + className);
+        System.out.println("  - 识别类型: " + plantType);
+        System.out.println("  - 显示名称: " + plantDisplayName);
+        System.out.println("  - 位置: (" + plantX + "," + plantY + ")");
+        
+        // 检查配置
+        System.out.println("🔧 配置检查：");
+        System.out.println("  - 返还功能启用: " + GameConfig.ENABLE_PLANT_REFUND);
+        System.out.println("  - 返还比例: " + (GameConfig.PLANT_REFUND_RATE * 100) + "%");
+        System.out.println("  - 最小返还: " + GameConfig.MIN_REFUND_AMOUNT);
+        System.out.println("  - 最大返还: " + GameConfig.MAX_REFUND_AMOUNT);
+        
+        // 计算返还金额
+        int plantCost = PlantManager.getPlantCost(plantType);
+        int refundAmount = PlantManager.calculateRefundAmount(plantType);
+        
+        System.out.println("💰 金额计算：");
+        System.out.println("  - 植物原价: " + plantCost);
+        System.out.println("  - 计算返还: " + refundAmount);
+        
+        System.out.println("🔧 正在铲除植物: " + plantDisplayName + " (类型: " + plantType + ")");
+        
+        // 执行铲除
+        plant.die();
+        System.out.println("✅ 植物已标记为死亡");
+        
+        // 返还金币
+        if (refundAmount > 0) {
+            SunManager sunManager = SunManager.getInstance();
+            
+            // 记录铲除前的阳光数量
+            int sunBefore = sunManager.getCurrentSun();
+            System.out.println("💰 铲除前阳光数量: " + sunBefore);
+            
+            // 使用addSunSafely方法，避免冷却时间限制
+            sunManager.addSunSafely(refundAmount);
+            
+            // 记录铲除后的阳光数量
+            int sunAfter = sunManager.getCurrentSun();
+            System.out.println("💰 铲除后阳光数量: " + sunAfter);
+            System.out.println("💰 实际增加: " + (sunAfter - sunBefore));
+            
+            System.out.println("✅ 铲除 " + plantDisplayName + " 返还 " + refundAmount + " 阳光");
+            
+            // 创建返还特效
+            createRefundEffect(plantX, plantY, refundAmount);
+            
+        } else {
+            System.out.println("💸 铲除 " + plantDisplayName + " 无返还");
+            System.out.println("  原因分析：");
+            if (!GameConfig.ENABLE_PLANT_REFUND) {
+                System.out.println("  - 返还功能被禁用");
+            } else if (plantCost <= 0) {
+                System.out.println("  - 植物类型未知或无价值");
+            } else {
+                System.out.println("  - 计算出的返还金额为0");
+            }
+        }
+        
+        System.out.println("=== 铲除植物调试结束 ===");
         return true;
     }
+    
+	/**
+	 * 根据植物对象获取植物类型
+	 */
+    private String getPlantType(com.tedu.element.Plant plant) {
+        String className = plant.getClass().getSimpleName().toLowerCase();
+        String packageName = plant.getClass().getPackage().getName();
+        
+        System.out.println("🔍 植物类型识别：");
+        System.out.println("  - 完整类名: " + plant.getClass().getName());
+        System.out.println("  - 简单类名: " + className);
+        System.out.println("  - 包名: " + packageName);
+        
+        String plantType = "unknown";
+        
+        if (className.contains("peashooter")) {
+            plantType = "peashooter";
+            System.out.println("  ✅ 识别为豌豆射手");
+        } else if (className.contains("sunflower")) {
+            plantType = "sunflower";
+            System.out.println("  ✅ 识别为向日葵");
+        } else if (className.contains("wallnut") || className.contains("nut")) {
+            plantType = "wallnut";
+            System.out.println("  ✅ 识别为坚果墙");
+        } else {
+            System.out.println("  ⚠️ 未能识别植物类型，将按未知处理");
+        }
+        
+        return plantType;
+    }
+	
+	/**
+	 * 在指定网格位置查找植物
+	 */
+	private com.tedu.element.Plant findPlantAtGrid(int gridX, int gridY) {
+	    ElementManager em = ElementManager.getManager();
+	    java.util.List<com.tedu.element.ElementObj> plants = em.getElementsByKey(GameElement.PLANTS);
+	    
+	    for (com.tedu.element.ElementObj obj : plants) {
+	        if (obj instanceof com.tedu.element.Plant) {
+	            com.tedu.element.Plant plant = (com.tedu.element.Plant) obj;
+	            // 通过植物的网格坐标判断
+	            if (plant.getGridX() == gridX && plant.getGridY() == gridY && plant.isLive()) {
+	                return plant;
+	            }
+	        }
+	    }
+	    return null;
+	}
+	
+	/**
+	 * 创建返还金币的视觉特效
+	 */
+	private void createRefundEffect(int x, int y, int amount) {
+	    try {
+	        System.out.println("🎆===================🎆");
+	        System.out.println("💰    返还 +" + amount + " 阳光！    💰");
+	        System.out.println("📍  位置: (" + x + "," + y + ")   📍");
+	        System.out.println("🎆===================🎆");
+	        
+	        // 如果有特效系统，可以在这里添加
+	        // RefundTextEffect effect = new RefundTextEffect(x, y, amount);
+	        // ElementManager.getManager().addElement(effect, GameElement.EFFECTS);
+	        
+	    } catch (Exception e) {
+	        System.err.println("创建返还特效失败: " + e.getMessage());
+	    }
+	}
     
     // Getter方法
     public boolean isShovelActive() {

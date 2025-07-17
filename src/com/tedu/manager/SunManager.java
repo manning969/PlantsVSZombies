@@ -36,6 +36,11 @@ public class SunManager {
 
     private Random random; // 用于生成随机阳光位置和时间间隔
 
+    private long naturalSunAccumulator = 0;
+    private long sunflowerAccumulator = 0;
+    private long sunSpawnTimer = 0;
+    private static final long SUN_SPAWN_INTERVAL = 10000; // 10秒（毫秒）
+    
     private SunManager() {
         this.currentSun = GameConfig.INITIAL_SUN;
         this.totalSunCollected = 0;
@@ -63,8 +68,31 @@ public class SunManager {
     }
 
     /**
-     * 游戏更新时调用，检查是否需要自然生成阳光
+     * 新增带deltaTime参数的update方法
      */
+    public void update(long deltaTime) {
+        // 累积时间（考虑游戏速度因子）
+        long scaledDelta = (long)(deltaTime * GameConfig.TIME_SCALE);
+        
+        // 自然阳光生成逻辑
+        naturalSunAccumulator += scaledDelta;
+        if (naturalSunAccumulator >= GameConfig.NATURAL_SUN_INTERVAL) {
+            generateNaturalSun();
+            naturalSunAccumulator = 0;
+        }
+ 
+        // 向日葵产阳光逻辑
+        sunflowerAccumulator += scaledDelta;
+        if (sunflowerAccumulator >= SUNFLOWER_PRODUCE_INTERVAL) {
+            // 这里需要由WaveManager通知向日葵产阳光
+            sunflowerAccumulator = 0;
+        }
+    }
+ 
+    /**
+     * 保留原有无参方法（兼容旧调用）
+     */
+    @Deprecated
     public void update() {
         long currentTime = System.currentTimeMillis();
 
@@ -126,9 +154,9 @@ public class SunManager {
     }
 
     /**
-     * 增加阳光（玩家收集阳光时调用）
+     * 增加阳光数量并显示来源信息 (重载方法)
      */
-    public boolean addSun(int amount) {
+    public boolean addSun(int amount, String source) {
         long currentTime = System.currentTimeMillis();
 
         // 防止过快收集阳光
@@ -140,8 +168,24 @@ public class SunManager {
         totalSunCollected += amount;
         lastSunCollectionTime = currentTime;
 
-        System.out.println("获得阳光 +" + amount + "，当前阳光: " + currentSun);
+        System.out.println("💰 获得阳光 +" + amount + " 来源: " + source + " (当前: " + currentSun + ")");
         return true;
+    }
+    
+    /**
+     * 安全增加阳光（防止溢出，无冷却）
+     */
+    public void addSunSafely(int amount) {
+        if (amount > 0) {
+            // 防止整数溢出
+            if (Integer.MAX_VALUE - this.currentSun > amount) {
+                this.currentSun += amount;
+            } else {
+                this.currentSun = Integer.MAX_VALUE;
+            }
+            this.totalSunCollected += amount;
+            System.out.println("💰 安全增加阳光: +" + amount + " (当前: " + this.currentSun + ")");
+        }
     }
 
     /**

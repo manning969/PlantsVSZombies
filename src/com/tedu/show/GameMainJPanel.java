@@ -5,13 +5,22 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.awt.BasicStroke;
 import java.util.List;
 import java.util.Map;
+
+import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import com.tedu.element.ElementObj;
 import com.tedu.manager.ElementManager;
 import com.tedu.manager.GameElement;
+import com.tedu.manager.GameLoad;
 import com.tedu.manager.ShovelManager;
 import com.tedu.manager.SunManager;
 import com.tedu.manager.WaveManager;
@@ -22,7 +31,7 @@ import com.tedu.utils.GameConfig;
  */
 public class GameMainJPanel extends JPanel implements Runnable {
 
-    private ElementManager em;
+	private ElementManager em;
     private SunManager sunManager;      // 阳光管理器
     private WaveManager waveManager;    // 波次管理器
     private ShovelManager shovelManager; // 铲子管理器
@@ -33,11 +42,67 @@ public class GameMainJPanel extends JPanel implements Runnable {
     // 游戏线程引用（用于调用种植和铲除方法）
     private com.tedu.controller.GameThread gameThread;
 
+    // 新增加速功能相关变量
+    private boolean isMouseOverSpeedButton = false;
+    private long speedNotificationTime = 0;
+    private static final long NOTIFICATION_DURATION = 3000; // 3秒通知
+    
+    // 速度按钮图片
+    private Image speedNormalImg;
+    private Image speedFastImg;
     
     public GameMainJPanel() {
         init();
+        // 加载速度按钮图片
+        loadSpeedButtonImages();
     }
 
+    /**
+     * 加载速度按钮图片
+     */
+    private void loadSpeedButtonImages() {
+        // 直接从 imgMap 获取 ImageIcon 并转换为 Image
+        ImageIcon normalIcon = GameLoad.imgMap.get(GameConfig.SPEED_BUTTON_NORMAL);
+        ImageIcon doubleIcon = GameLoad.imgMap.get(GameConfig.SPEED_BUTTON_DOUBLE);
+        
+        if (normalIcon != null) {
+            speedNormalImg = normalIcon.getImage();
+        } else {
+            System.err.println("⚠️ 普通速度按钮图片未加载，使用占位图片");
+            speedNormalImg = createFallbackSpeedImage("1x");
+        }
+        
+        if (doubleIcon != null) {
+            speedFastImg = doubleIcon.getImage();
+        } else {
+            System.err.println("⚠️ 加速按钮图片未加载，使用占位图片");
+            speedFastImg = createFallbackSpeedImage("2x");
+        }
+        
+        // 调试输出
+        System.out.println("速度按钮图片获取状态 (在面板中):");
+        System.out.println("  " + GameConfig.SPEED_BUTTON_NORMAL + ": " + (speedNormalImg != null));
+        System.out.println("  " + GameConfig.SPEED_BUTTON_DOUBLE + ": " + (speedFastImg != null));
+    }
+
+    private Image createFallbackSpeedImage(String label) {
+        BufferedImage img = new BufferedImage(50, 50, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = img.createGraphics();
+        
+        // 绘制背景
+        g2d.setColor(new Color(200, 200, 200, 150));
+        g2d.fillRoundRect(0, 0, 50, 50, 10, 10);
+        
+        // 绘制文字
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("Arial", Font.BOLD, 14));
+        String text = label.equals(GameConfig.SPEED_BUTTON_NORMAL) ? "1x" : "2x";
+        g2d.drawString(text, 15, 30);
+        
+        g2d.dispose();
+        return img;
+    }
+    
     public void init() {
         em = ElementManager.getManager();
         sunManager = SunManager.getInstance();
@@ -56,18 +121,58 @@ public class GameMainJPanel extends JPanel implements Runnable {
         // 设置铲子管理器的游戏面板引用
         shovelManager.setGamePanel(this);
         
-        // 添加鼠标点击监听器来获取焦点
-        addMouseListener(new java.awt.event.MouseAdapter() {
+        // 添加鼠标点击监听器
+        addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                requestFocusInWindow();
-                System.out.println("面板通过鼠标点击获得焦点");
+            public void mouseClicked(MouseEvent e) {
+                handleMouseClick(e.getPoint());
+                requestFocusInWindow(); // 确保面板获得焦点
             }
         });
 
         System.out.println("GameMainJPanel 初始化完成，可获得焦点: " + isFocusable());
+    
+        // 新增鼠标移动监听器
+        addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                handleMouseMove(e.getPoint());
+            }
+        });
     }
 
+    // 鼠标移动处理方法
+    private void handleMouseMove(Point mousePoint) {
+        Rectangle speedButtonRect = new Rectangle(
+            GameConfig.SPEED_BUTTON_X,
+            GameConfig.SPEED_BUTTON_Y,
+            GameConfig.SPEED_BUTTON_SIZE,
+            GameConfig.SPEED_BUTTON_SIZE
+        );
+        isMouseOverSpeedButton = speedButtonRect.contains(mousePoint);
+        repaint();
+    }
+    
+    // 鼠标点击处理方法
+    private void handleMouseClick(Point mousePoint) {
+        // 检查是否点击了速度按钮
+        Rectangle speedButtonRect = new Rectangle(
+            GameConfig.SPEED_BUTTON_X,
+            GameConfig.SPEED_BUTTON_Y,
+            GameConfig.SPEED_BUTTON_SIZE,
+            GameConfig.SPEED_BUTTON_SIZE
+        );
+        if (speedButtonRect.contains(mousePoint)) {
+            toggleGameSpeed();
+            return;
+        }
+        
+        // 其他点击处理（如收集阳光）
+        if (gameThread != null) {
+            gameThread.collectSun(mousePoint.x, mousePoint.y);
+        }
+    }
+    
     /**
      * 设置游戏线程引用
      */
@@ -102,8 +207,103 @@ public class GameMainJPanel extends JPanel implements Runnable {
         if (showDebugInfo) {
             drawDebugInfo(g2d);
         }
+     
+        // 绘制加速按钮和通知
+        drawSpeedButton(g2d);
+        drawSpeedNotification(g2d);
     }
     
+    // 修改：使用图片绘制速度按钮
+    private void drawSpeedButton(Graphics2D g2d) {
+        // 按钮位置和尺寸
+        int x = GameConfig.SPEED_BUTTON_X;
+        int y = GameConfig.SPEED_BUTTON_Y;
+        int size = GameConfig.SPEED_BUTTON_SIZE;
+        
+        // 获取当前速度对应的图片
+        Image currentImg = (GameConfig.currentSpeed == GameConfig.NORMAL_SPEED) ? 
+                          speedNormalImg : speedFastImg;
+        
+        if (currentImg != null) {
+            // 绘制图片
+            g2d.drawImage(currentImg, x, y, size, size, null);
+            
+         // +++ 修改这里：将悬停效果颜色改为浅棕色 +++
+            if (isMouseOverSpeedButton) {
+                // 使用浅棕色：RGB (210, 180, 140) 透明度 100 (40%)
+                g2d.setColor(new Color(210, 180, 140, 100));
+                g2d.fillRect(x, y, size, size);
+            }
+        } else {
+            // 图片加载失败时使用备用方案（圆角矩形）
+            drawSpeedButtonFallback(g2d);
+        }
+    }
+    
+    /**
+     * 图片加载失败时的备用绘制方案
+     */
+    private void drawSpeedButtonFallback(Graphics2D g2d) {
+        int x = GameConfig.SPEED_BUTTON_X;
+        int y = GameConfig.SPEED_BUTTON_Y;
+        int size = GameConfig.SPEED_BUTTON_SIZE;
+ 
+        // 绘制按钮背景
+        g2d.setColor(new Color(200, 200, 200, 150));
+        g2d.fillRoundRect(x, y, size, size, 10, 10);
+ 
+        // 绘制速度图标
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("Arial", Font.BOLD, 14));
+        String speedText = GameConfig.currentSpeed + "x";
+        g2d.drawString(speedText, x + size/4, y + size/2 + 5);
+ 
+        // 悬停效果
+        if (isMouseOverSpeedButton) {
+            g2d.setColor(Color.YELLOW);
+            g2d.setStroke(new BasicStroke(2));
+            g2d.drawRoundRect(x, y, size, size, 10, 10);
+        }
+    }
+ 
+    // 速度通知绘制方法
+    private void drawSpeedNotification(Graphics2D g2d) {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - speedNotificationTime < NOTIFICATION_DURATION) {
+            g2d.setColor(new Color(255, 255, 0, 200));
+            g2d.fillRoundRect(
+                getWidth()/2 - 100, 
+                50, 
+                200, 
+                40, 
+                20, 
+                20
+            );
+            
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(FontHelper.getChineseFont(Font.BOLD, 16));
+            String message = "当前速度: " + GameConfig.currentSpeed + "倍速";
+            g2d.drawString(message, getWidth()/2 - 70, 75);
+        }
+    }
+ 
+    // 速度切换方法
+    private void toggleGameSpeed() {
+        if (GameConfig.currentSpeed == GameConfig.NORMAL_SPEED) {
+            GameConfig.currentSpeed = GameConfig.FAST_SPEED;
+        } else {
+            GameConfig.currentSpeed = GameConfig.NORMAL_SPEED;
+        }
+        speedNotificationTime = System.currentTimeMillis();
+        System.out.println("速度切换至: " + GameConfig.currentSpeed + "倍速");
+        
+        // 通知游戏线程速度变化
+        if (gameThread != null) {
+            gameThread.setGameSpeed(GameConfig.currentSpeed);
+        }
+        
+        repaint();
+    }
     
 
     /**
@@ -292,7 +492,7 @@ public class GameMainJPanel extends JPanel implements Runnable {
             int textHeight = fm.getHeight();
             
             // 设置框的尺寸，确保文字能完全显示
-            int boxWidth = Math.max(textWidth + 20, 280); // 至少280像素宽，或根据文字宽度调整
+            int boxWidth = Math.max(textWidth + 20, 220); // 至少210像素宽，或根据文字宽度调整
             int boxHeight = textHeight + 10; // 根据文字高度调整
             int boxX = 10;
             int boxY = 90;
@@ -456,4 +656,5 @@ public class GameMainJPanel extends JPanel implements Runnable {
     public boolean isShowDebugInfo() {
         return showDebugInfo;
     }
+    
 }

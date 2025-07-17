@@ -4,7 +4,6 @@ import java.awt.Graphics;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.BasicStroke;
-import javax.swing.ImageIcon;
 import com.tedu.element.ElementObj;
 
 /**

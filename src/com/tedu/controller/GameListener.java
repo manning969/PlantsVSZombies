@@ -184,9 +184,7 @@ public class GameListener implements KeyListener, MouseListener, MouseMotionList
         
         if (e.getButton() == MouseEvent.BUTTON1) { // 左键
             handleLeftClick(mouseX, mouseY);
-        } else if (e.getButton() == MouseEvent.BUTTON3) { // 右键
-            handleRightClick(mouseX, mouseY);
-        }
+        } 
     }
     
     @Override
@@ -273,23 +271,6 @@ public class GameListener implements KeyListener, MouseListener, MouseMotionList
         }
     }
     
-    /**
-     * 处理右键点击 - 铲除植物或激活铲子模式
-     */
-    private void handleRightClick(int mouseX, int mouseY) {
-        System.out.println("右键点击 - 铲子功能");
-        
-        // 方案1：右键直接铲除（无需激活铲子模式）
-        handleShovelAction(mouseX, mouseY);
-        
-        // 方案2：右键激活铲子模式（可选）
-        // if (!shovelManager.isShovelActive()) {
-        //     shovelManager.activateShovel();
-        //     System.out.println("右键激活铲子模式");
-        // } else {
-        //     handleShovelAction(mouseX, mouseY);
-        // }
-    }
     
     /**
      * 处理铲子操作

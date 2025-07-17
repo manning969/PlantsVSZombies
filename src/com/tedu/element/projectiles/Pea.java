@@ -14,7 +14,19 @@ public class Pea extends ElementObj {
     private int speed;      // 移动速度
     private int rowIndex;   // 所在行索引
     private boolean hasHit = false; // 新增：防止重复伤害的标志
+    private final float speedPerSecond = 5.0f;
     
+    @Override
+    public void update(long deltaTime) {
+        // 移动子弹（使用 long 类型时间）
+        float moveAmount = speedPerSecond * (deltaTime / 1000.0f);
+        this.x += moveAmount;
+        
+        // 检查是否超出边界
+        if (x > GameConfig.GAME_WIDTH) {
+            die();
+        }
+    }
     public Pea() {
         super();
         // 应用GameConfig中的伤害配置

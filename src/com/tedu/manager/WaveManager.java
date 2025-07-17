@@ -37,6 +37,7 @@ public class WaveManager {
     private static final long PREPARATION_TIME = 800;      // 8秒准备时间
     private static final long WAVE_INTERVAL_TIME = 400;     // 4秒波次间隔
     private static final long FINAL_WAVE_WARNING_TIME = 500; // 5秒最终波次警告
+    private long waveTimer = 0;
     
     // 波次配置
     private List<WaveConfig> waveConfigs;
@@ -59,7 +60,7 @@ public class WaveManager {
         waveConfigs = new ArrayList<>();
         
         // 第1波：简单开始，只有少量普通僵尸
-        waveConfigs.add(new WaveConfig(1, 3, 1, 0, 800, "新手指导"));
+        waveConfigs.add(new WaveConfig(1, 3, 0, 0, 800, "新手指导"));
         
         // 第2-3波：逐渐增加普通僵尸数量
         waveConfigs.add(new WaveConfig(2, 5, 0, 0, 700, "熟悉节奏"));
@@ -86,6 +87,7 @@ public class WaveManager {
     /**
      * 更新波次状态 - 增强版状态机
      */
+    
     public void update(long gameTime) {
         if (gameWon) return;
         
@@ -156,10 +158,12 @@ public class WaveManager {
     private void updateActiveWave(long gameTime) {
         WaveConfig config = getCurrentWaveConfig();
         
-        // 生成僵尸
-        if (gameTime >= nextZombieSpawnTime && config.hasZombiesLeft()) {
+        // 生成僵尸（使用 waveTimer 替代 nextZombieSpawnTime）
+        waveTimer += gameTime - phaseStartTime; // 累积波次内时间
+        
+        if (waveTimer >= config.spawnInterval && config.hasZombiesLeft()) {
             spawnNextZombie();
-            nextZombieSpawnTime = gameTime + config.spawnInterval;
+            waveTimer = 0; // 重置计时器
         }
         
         // 检查波次是否完成
@@ -191,10 +195,12 @@ public class WaveManager {
             currentPhase = GamePhase.WAVE_INTERVAL;
             phaseStartTime = gameTime;
             
-            // 波次完成奖励（额外阳光）
+            // 波次完成奖励（额外阳光）- 修改为使用新的方法
             SunManager sunManager = SunManager.getInstance();
             int bonusSun = 25 + currentWave * 5; // 奖励阳光随波次递增
-            sunManager.addSun(bonusSun);
+            
+            // 使用addSunSafely方法，因为这是系统奖励，不需要冷却时间限制
+            sunManager.addSunSafely(bonusSun);
             System.out.println("🌞 波次完成奖励: +" + bonusSun + " 阳光！");
         }
     }
@@ -221,9 +227,10 @@ public class WaveManager {
      * 开始下一波
      */
     private void startNextWave(long gameTime) {
-        currentWave++;
+    	currentWave++;
         currentPhase = GamePhase.WAVE_ACTIVE;
         phaseStartTime = gameTime;
+        waveTimer = 0; // 新增：波次开始时重置计时器
         nextZombieSpawnTime = gameTime + 100;
         
         WaveConfig config = getCurrentWaveConfig();

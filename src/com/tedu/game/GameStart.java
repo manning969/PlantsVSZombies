@@ -2,6 +2,7 @@ package com.tedu.game;
 
 import com.tedu.controller.GameListener;
 import com.tedu.controller.GameThread;
+import com.tedu.manager.GameLoad;
 import com.tedu.show.GameJFrame;
 import com.tedu.show.GameMainJPanel;
 import com.tedu.utils.GameConfig;
@@ -13,7 +14,13 @@ public class GameStart {
     
     //程序唯一入口
     public static void main(String[] args) {
-        // 设置字体渲染属性，改善中文显示
+    	// 验证资源文件
+        GameLoad.validateResources();
+        
+        // 加载游戏资源
+        GameLoad.loadImg();
+        
+    	// 设置字体渲染属性，改善中文显示
         System.setProperty("awt.useSystemAAFontSettings", "on");
         System.setProperty("swing.aatext", "true");
         System.setProperty("file.encoding", "UTF-8");
@@ -98,7 +105,6 @@ public class GameStart {
         System.out.println();
         System.out.println("鼠标操作:");
         System.out.println("  左键点击 - 种植选中的植物 / 收集阳光");
-        System.out.println("  右键点击 - 铲除植物 (暂未实现)");
         System.out.println();
         System.out.println("游戏目标:");
         System.out.println("  - 使用植物抵御僵尸入侵");

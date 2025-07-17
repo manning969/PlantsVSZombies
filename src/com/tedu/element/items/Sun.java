@@ -1,7 +1,6 @@
 package com.tedu.element.items;
 
 import java.awt.Graphics;
-import javax.swing.ImageIcon;
 import com.tedu.element.ElementObj;
 import com.tedu.manager.GameLoad; // 确保导入 GameLoad
 import com.tedu.utils.GameConfig; // 确保导入 GameConfig

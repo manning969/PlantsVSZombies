@@ -1,6 +1,5 @@
 package com.tedu.element.plants;
 
-import javax.swing.ImageIcon;
 import com.tedu.element.Plant;
 import com.tedu.element.ElementObj;
 import com.tedu.element.projectiles.Pea;
@@ -14,20 +13,20 @@ import java.util.List;
  * 豌豆射手 - 基础攻击植物
  */
 public class Peashooter extends Plant {
-
-    // 新增：用于跟踪当前动画类型，避免重复设置ImageIcon
-    private boolean currentIconIsAttacking = false; // 用于判断当前显示的GIF是否是攻击的
-
+	// 新增冷却系统
+    private int attackCooldown = 0;
+    private static final int ATTACK_INTERVAL = 60; // 攻击间隔（帧数）
+    private boolean currentIconIsAttacking = false;
+ 
     public Peashooter() {
         super();
-        // 初始设置为待机动画
         this.setIcon(GameLoad.imgMap.get("peashooter_idle"));
         this.currentIconIsAttacking = false;
     }
-
+ 
     public Peashooter(int gridX, int gridY) {
         super(gridX, gridY, 500, GameConfig.PEASHOOTER_COST,
-              GameLoad.imgMap.get("peashooter_idle")); // 初始设置为待机动画
+              GameLoad.imgMap.get("peashooter_idle"));
         this.currentIconIsAttacking = false;
     }
 
@@ -43,13 +42,20 @@ public class Peashooter extends Plant {
 
     @Override
     protected void performAction(long gameTime) {
-        boolean zombiePresent = hasZombieInRow(); // 检查是否有僵尸
+    	// 冷却处理（新增）
+        if (attackCooldown > 0) {
+            attackCooldown--;
+            return;
+        }
+        
+    	boolean zombiePresent = hasZombieInRow(); // 检查是否有僵尸
 
         // 检查是否可以射击
         if (canPerformAction(gameTime, GameConfig.SHOOT_INTERVAL)) {
             // 检查本行是否有僵尸
             if (zombiePresent) {
                 shoot();
+                attack(); // 调用整合后的攻击方法
                 lastActionTime = gameTime;
                 // 当射击时，立即切换到攻击动画
                 if (!currentIconIsAttacking) {
@@ -57,6 +63,9 @@ public class Peashooter extends Plant {
                     currentIconIsAttacking = true;
                     System.out.println("豌豆射手切换到攻击动画");
                 }
+            }else if (currentIconIsAttacking) {
+                this.setIcon(GameLoad.imgMap.get("peashooter_idle"));
+                currentIconIsAttacking = false;
             }
         }
         
@@ -75,6 +84,26 @@ public class Peashooter extends Plant {
         }
     }
 
+ // 整合后的攻击方法
+    protected void attack() {
+        ElementManager em = ElementManager.getManager();
+        List<ElementObj> zombies = em.getElementsByKey(GameElement.ZOMBIES);
+ 
+        for (ElementObj obj : zombies) {
+            if (isInSameRow(obj) && obj.getX() > this.getX()) {
+                // 调整发射位置（整合原有shoot方法逻辑）
+                int peaX = this.getX() + this.getW() - 5;
+                int peaY = this.getY() + this.getH() / 4;
+                
+                Pea pea = new Pea(peaX, peaY, this.gridY);
+                em.addElement(pea, GameElement.PROJECTILES);
+                
+                attackCooldown = ATTACK_INTERVAL; // 重置冷却
+                break;
+            }
+        }
+    }
+ 
     /**
      * 检查本行是否有僵尸
      */
@@ -119,4 +148,5 @@ public class Peashooter extends Plant {
     public String toString() {
         return "Peashooter at grid(" + gridX + "," + gridY + ") HP:" + hp;
     }
+    
 }

@@ -4,7 +4,7 @@ package com.tedu.element;
 import java.awt.Graphics;
 import javax.swing.ImageIcon;
 import com.tedu.utils.GameConfig;
-import com.tedu.manager.GameLoad;
+import com.tedu.manager.ZombieFactory;
 
 /**
  * 僵尸基类 - 修复死亡动画处理，确保僵尸死亡后立即停止移动，添加移动间隔控制
@@ -51,7 +51,14 @@ public abstract class Zombie extends ElementObj {
 
     // 死亡标记 - 用于更严格的状态控制
     private boolean isDying = false;
-
+    private final float speedPerSecond = 0.5f;
+    
+    @Override
+    public void update(long deltaTime) {
+        // 移动僵尸（使用 long 类型时间）
+        float moveAmount = speedPerSecond * (deltaTime / 1000.0f);
+        this.x -= moveAmount;
+    }
     public Zombie() {
         super();
         this.currentAnimationState = ZombieAnimationState.WALK;
@@ -313,10 +320,94 @@ public abstract class Zombie extends ElementObj {
         this.isEating = false;
         this.target = null;
         
+        giveKillReward();
+        
         setAnimationState(ZombieAnimationState.DIE);
         
         System.out.println("💀 " + this.getClass().getSimpleName() + " 在行" + rowIndex + " 开始死亡动画！");
     }
+    
+    /**
+     * 给予击杀奖励
+     */
+    private void giveKillReward() {
+        try {
+            if (!GameConfig.ENABLE_ZOMBIE_KILL_REWARD) {
+                return;
+            }
+            
+            String zombieType = getZombieType();
+            int rewardAmount = ZombieFactory.getZombieKillReward(zombieType);
+            
+            if (rewardAmount > 0) {
+                com.tedu.manager.SunManager sunManager = com.tedu.manager.SunManager.getInstance();
+                String zombieDisplayName = ZombieFactory.getZombieDisplayName(zombieType);
+                
+                // 记录奖励前的阳光（用于调试）
+                int sunBefore = sunManager.getCurrentSun();
+                
+                // 使用addSunSafely避免冷却限制
+                sunManager.addSunSafely(rewardAmount);
+                
+                // 记录奖励后的阳光（用于调试）
+                int sunAfter = sunManager.getCurrentSun();
+                
+                System.out.println("🏆 击杀奖励: 消灭" + zombieDisplayName + " +" + rewardAmount + " 阳光");
+                System.out.println("   阳光变化: " + sunBefore + " -> " + sunAfter + " (+" + (sunAfter - sunBefore) + ")");
+                
+                // 创建击杀奖励特效（可选）
+                createKillRewardEffect(rewardAmount);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("给予击杀奖励时发生错误: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 获取僵尸类型 - 新增方法，子类可以重写
+     */
+    protected String getZombieType() {
+        String className = this.getClass().getSimpleName().toLowerCase();
+        
+        if (className.contains("normal")) {
+            return "normal";
+        } else if (className.contains("conehead")) {
+            return "conehead";
+        } else if (className.contains("buckethead")) {
+            return "buckethead";
+        }
+        
+        // 默认根据血量判断（备用方案）
+        if (maxHp <= 150) {
+            return "normal";
+        } else if (maxHp <= 400) {
+            return "conehead";
+        } else {
+            return "buckethead";
+        }
+    }
+
+    /**
+     * 创建击杀奖励特效 - 新增方法
+     */
+    private void createKillRewardEffect(int rewardAmount) {
+        try {
+            System.out.println("⭐ === 击杀奖励特效 ===");
+            System.out.println("💰    获得 +" + rewardAmount + " 阳光！    💰");
+            System.out.println("📍  僵尸位置: (" + this.getX() + "," + this.getY() + ")");
+            System.out.println("⭐ ==================");
+            
+            // 如果有特效系统，可以在这里添加视觉特效
+            // KillRewardEffect effect = new KillRewardEffect(this.getX(), this.getY(), rewardAmount);
+            // ElementManager.getManager().addElement(effect, GameElement.EFFECTS);
+            
+        } catch (Exception e) {
+            System.err.println("创建击杀奖励特效失败: " + e.getMessage());
+        }
+    }
+
 
     /**
      * 设置僵尸的动画状态

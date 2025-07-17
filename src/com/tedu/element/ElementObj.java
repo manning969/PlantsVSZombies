@@ -7,7 +7,7 @@ import javax.swing.ImageIcon;
 //所有元素的基类
 //抽象类
 public abstract class ElementObj {
-    private int x;
+	protected int x;
     private int y;
     private int w;
     private int h;
@@ -107,6 +107,9 @@ public abstract class ElementObj {
 	}
 	
 	protected void updateImage() {}
+	public void update(long deltaTime) {
+        // 子类需要重写这个方法
+    }
 	protected void add(long gameTime){}
 	
 //	死亡方法  给子类继承的

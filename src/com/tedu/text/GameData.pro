@@ -32,6 +32,6 @@ shovel_idle=resources/images/ui/shovel/shovel_idle.png
 shovel_hover=resources/images/ui/shovel/shovel_hover.png
 shovel_active=resources/images/ui/shovel/shovel_active.png
 
-# 特效图片
-zombie_crush_effect_1=resources/images/effects/zombie_crush_1.png
-zombie_crush_effect_2=resources/images/effects/zombie_crush_2.png
+# 速度按钮图标
+speed_button_normal=resources/images/ui/speed_1x.png
+speed_button_double=resources/images/ui/speed_2x.png

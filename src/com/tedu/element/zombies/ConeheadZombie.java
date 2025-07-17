@@ -183,11 +183,11 @@ public class ConeheadZombie extends Zombie {
 
         switch (currentAnimationState) {
             case WALK:
-                iconKey = "normal_walk"; // 注意：这里可能需要改为 "conehead_walk"
+                iconKey = "conehead_walk";
                 newIcon = GameLoad.imgMap.get(iconKey);
                 break;
             case EAT:
-                iconKey = "normal_eat"; // 注意：这里可能需要改为 "conehead_eat"
+                iconKey = "conehead_eat";
                 newIcon = GameLoad.imgMap.get(iconKey);
                 break;
             case DIE:
@@ -220,6 +220,11 @@ public class ConeheadZombie extends Zombie {
             }
         }
         return false;
+    }
+    
+    @Override
+    protected String getZombieType() {
+        return "conehead";
     }
 
     @Override

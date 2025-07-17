@@ -13,6 +13,9 @@ public abstract class Plant extends ElementObj {
     protected int gridX;        // 网格X坐标
     protected int gridY;        // 网格Y坐标
     protected long lastActionTime; // 上次行动时间
+ // 使用 long 类型记录时间
+    private long attackTimer = 0;
+    private final long attackInterval = 2000; // 攻击间隔（毫秒）
     
     public Plant() {
         super();
@@ -85,7 +88,19 @@ public abstract class Plant extends ElementObj {
         // 更新图像（如果有动画）
         updateImage();
     }
-    
+    @Override
+    public void update(long deltaTime) {
+        // 更新攻击计时器
+        attackTimer += deltaTime;
+        if (attackTimer >= attackInterval) {
+            attackTimer = 0;
+            attack();
+        }
+    }
+    public void attack(int speedMultiplier) {
+        // 默认空实现（由子类具体实现）
+    }
+    protected abstract void attack();
     // Getter和Setter方法
     public int getHp() {
         return hp;

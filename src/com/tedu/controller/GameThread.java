@@ -5,7 +5,6 @@ import java.util.Map;
 import com.tedu.element.ElementObj;
 import com.tedu.element.Plant;
 import com.tedu.element.Zombie;
-import com.tedu.element.projectiles.Pea;
 import com.tedu.element.items.Sun;
 import com.tedu.element.items.LawnMower;
 import com.tedu.element.effects.ShovelDirtEffect;
@@ -31,7 +30,13 @@ public class GameThread extends Thread {
     private boolean gameRunning = true;
     private boolean gamePaused = false; // 游戏暂停状态
     private long gameTime = 0;
-
+    private boolean running = true;
+    private static final long FRAME_PERIOD = 16; // 约60FPS (1000/60 ≈ 16ms)
+    private int speedMultiplier = 1;
+    
+    // 使用 long 类型记录时间
+    private long lastUpdateTime = System.currentTimeMillis();
+    
     // 植物冷却管理
     private Map<String, Long> plantCooldowns;
 
@@ -53,8 +58,46 @@ public class GameThread extends Thread {
 
         // 游戏结束后的清理
         gameOver();
+        while (running) {
+            long startTime = System.currentTimeMillis();
+            
+            // 计算时间增量 (毫秒)
+            long currentTime = System.currentTimeMillis();
+            long deltaTime = currentTime - lastUpdateTime;
+            lastUpdateTime = currentTime;
+            
+            // 应用速度因子 (基于速度倍数)
+            long scaledDeltaTime = deltaTime * speedMultiplier; // 使用类字段
+            
+            // 游戏更新
+            gameUpdate(scaledDeltaTime);
+            
+            // 控制帧率
+            long frameTime = System.currentTimeMillis() - startTime;
+            if (frameTime < FRAME_PERIOD) {
+                try {
+                    Thread.sleep(FRAME_PERIOD - frameTime);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
+    private void gameUpdate(long deltaTime) {
+        // 所有需要时间控制的更新都使用 long 类型的 deltaTime 参数
+        ElementManager em = ElementManager.getInstance();
+        em.update(deltaTime);
+        
+        // 更新管理器
+        SunManager.getInstance().update(deltaTime);
+        WaveManager.getInstance().update(deltaTime);
+        // ... 其他管理器更新
+    }
+    
+    public void setRunning(boolean running) {
+        this.running = running;
+    }
     /**
      * 游戏资源加载
      */
@@ -240,15 +283,22 @@ public class GameThread extends Thread {
         if (clickedSun != null && clickedSun instanceof Sun) {
             Sun sun = (Sun) clickedSun;
             if (!sun.isCollected()) {
-                sunManager.addSun(sun.getValue());
-                sun.collect();
-                System.out.println("收集阳光成功！");
-                return true;
+                // 使用带来源信息的addSun方法
+                boolean success = sunManager.addSun(sun.getValue(), "收集阳光");
+                
+                if (success) {
+                    sun.collect();
+                    System.out.println("收集阳光成功！");
+                    return true;
+                } else {
+                    // 收集失败，通常是因为冷却时间
+                    System.out.println("⚠️ 阳光收集太快，请稍后再试！");
+                    return false;
+                }
             }
         }
         return false;
     }
-
     /**
      * 检查网格是否为空
      */
@@ -368,7 +418,7 @@ public class GameThread extends Thread {
     }
 
     /**
-     * 增强的铲除植物方法 - 支持铲子模式
+     * 增强的铲除植物方法 - 支持铲子模式和阳光返还
      */
     public boolean removePlant(int gridX, int gridY) {
         List<ElementObj> plants = em.getElementsByKey(GameElement.PLANTS);
@@ -378,6 +428,28 @@ public class GameThread extends Thread {
             if (obj instanceof Plant) {
                 Plant plant = (Plant) obj;
                 if (plant.getGridX() == gridX && plant.getGridY() == gridY) {
+                    
+                    // === 新增：计算和返还阳光 ===
+                    int refundAmount = calculatePlantRefund(plant);
+                    if (refundAmount > 0) {
+                        String plantDisplayName = getPlantDisplayName(plant);
+                        
+                        // 记录返还前的阳光数量（用于调试）
+                        int sunBefore = sunManager.getCurrentSun();
+                        
+                        // 返还阳光
+                        sunManager.addSunSafely(refundAmount);
+                        
+                        // 记录返还后的阳光数量（用于调试）
+                        int sunAfter = sunManager.getCurrentSun();
+                        
+                        System.out.println("💰 铲除返还: " + plantDisplayName + " +" + refundAmount + " 阳光");
+                        System.out.println("   阳光变化: " + sunBefore + " -> " + sunAfter + " (+" + (sunAfter - sunBefore) + ")");
+                    } else {
+                        System.out.println("💸 该植物无返还阳光");
+                    }
+                    // === 返还逻辑结束 ===
+                    
                     // 移除植物
                     plant.setLive(false);
                     plants.remove(i);
@@ -399,6 +471,57 @@ public class GameThread extends Thread {
         return false;
     }
 
+    /**
+     * 计算植物铲除返还的阳光数量
+     * 保持封装性：将逻辑委托给专门的管理器
+     */
+    private int calculatePlantRefund(Plant plant) {
+        if (!GameConfig.ENABLE_PLANT_REFUND) {
+            return 0;
+        }
+        
+        String plantType = identifyPlantType(plant);
+        
+        // 使用现有的PlantManager来计算返还金额（保持封装）
+        int refundAmount = com.tedu.manager.PlantManager.calculateRefundAmount(plantType);
+        
+        System.out.println("🔍 返还计算调试:");
+        System.out.println("  - 植物类: " + plant.getClass().getSimpleName());
+        System.out.println("  - 识别类型: " + plantType);
+        System.out.println("  - 原始成本: " + com.tedu.manager.PlantManager.getPlantCost(plantType));
+        System.out.println("  - 返还金额: " + refundAmount);
+        
+        return refundAmount;
+    }
+
+    /**
+     * 根据植物对象识别植物类型
+     * 保持封装性：只负责类型识别，不处理业务逻辑
+     */
+    private String identifyPlantType(Plant plant) {
+        String className = plant.getClass().getSimpleName().toLowerCase();
+        
+        if (className.contains("peashooter")) {
+            return "peashooter";
+        } else if (className.contains("sunflower")) {
+            return "sunflower";
+        } else if (className.contains("wallnut") || className.contains("nut")) {
+            return "wallnut";
+        }
+        
+        System.out.println("⚠️ 未能识别植物类型: " + className);
+        return "unknown";
+    }
+
+    /**
+     * 获取植物的显示名称
+     * 保持封装性：委托给PlantManager
+     */
+    private String getPlantDisplayName(Plant plant) {
+        String plantType = identifyPlantType(plant);
+        return com.tedu.manager.PlantManager.getPlantDisplayName(plantType);
+    }
+    
     /**
      * 创建铲除特效 - 修复版本
      */
@@ -441,5 +564,10 @@ public class GameThread extends Thread {
     public void stopGame() {
         gameRunning = false;
         System.out.println("游戏已停止");
+    }
+ // 新增: 设置游戏速度方法
+    public void setGameSpeed(int multiplier) {
+        this.speedMultiplier = Math.max(1, Math.min(4, multiplier));
+        System.out.println("游戏速度设置为: " + speedMultiplier + "倍");
     }
 }

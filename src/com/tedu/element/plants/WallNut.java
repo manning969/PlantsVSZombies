@@ -25,7 +25,10 @@ public class WallNut extends Plant {
         this.maxHp = 1250;
         this.currentState = "full";
     }
-    
+    @Override
+    public void attack() {
+        // 坚果墙没有攻击能力，空实现即可
+    }
     @Override
     public ElementObj createElement(String str) {
         // 解析字符串格式: "gridX,gridY"

@@ -1,7 +1,10 @@
 package com.tedu.manager;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -12,23 +15,24 @@ import javax.swing.ImageIcon;
 import com.tedu.element.ElementObj;
 import java.io.File;
 import java.io.FileInputStream;
-// import java.io.FileWriter; // 移除或注释掉这个导入，如果你要替换掉它
-import java.io.FileOutputStream; // 新增导入
-import java.io.OutputStreamWriter; // 新增导入
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 
 import com.tedu.element.items.Sun;
 import com.tedu.element.items.Sun.SunType;
-import com.tedu.element.items.LawnMower;
 import com.tedu.utils.GameConfig;
+import com.tedu.element.items.LawnMower;
 
 /**
- * 植物大战僵尸游戏资源加载器 - 修复死亡动画图片配置
+ * 植物大战僵尸游戏资源加载器 - 修复死亡动画图片配置并添加加速按钮图片加载
  */
 public class GameLoad {
     private static ElementManager em = ElementManager.getManager();
 
-    // 图片集合
+    // 图片集合（保留原有的ImageIcon类型）
     public static Map<String, ImageIcon> imgMap = new HashMap<>();
+    // 新增的Image类型图片集合（用于加速按钮等需要Image类型的资源）
+    public static Map<String, Image> imageMap = new HashMap<>();
 
     // 用于读取文件的类
     private static Properties pro = new Properties();
@@ -69,6 +73,56 @@ public class GameLoad {
         }
         
         validateDeathAnimations();
+        
+        // 加载加速按钮图片（新增）
+        loadSpeedButtonImages();
+        
+     // 调试输出
+        debugPrintLoadedImages();
+    }
+
+    /**
+     * 加载加速按钮图片（新增方法）
+     */
+    private static void loadSpeedButtonImages() {
+        // 使用 imgMap 而不是 imageMap
+        ImageIcon normalIcon = imgMap.get(GameConfig.SPEED_BUTTON_NORMAL);
+        ImageIcon doubleIcon = imgMap.get(GameConfig.SPEED_BUTTON_DOUBLE);
+        
+        if (normalIcon != null) {
+            imageMap.put(GameConfig.SPEED_BUTTON_NORMAL, normalIcon.getImage());
+        } else {
+            System.err.println("❌ 未找到速度按钮普通图标: " + GameConfig.SPEED_BUTTON_NORMAL);
+            createPlaceholderImage(GameConfig.SPEED_BUTTON_NORMAL);
+        }
+        
+        if (doubleIcon != null) {
+            imageMap.put(GameConfig.SPEED_BUTTON_DOUBLE, doubleIcon.getImage());
+        } else {
+            System.err.println("❌ 未找到速度按钮加速图标: " + GameConfig.SPEED_BUTTON_DOUBLE);
+            createPlaceholderImage(GameConfig.SPEED_BUTTON_DOUBLE);
+        }
+        
+        // 调试输出
+        System.out.println("速度按钮图片加载状态:");
+        System.out.println("  " + GameConfig.SPEED_BUTTON_NORMAL + ": " + 
+                          (imageMap.get(GameConfig.SPEED_BUTTON_NORMAL) != null ? "✅" : "❌"));
+        System.out.println("  " + GameConfig.SPEED_BUTTON_DOUBLE + ": " + 
+                          (imageMap.get(GameConfig.SPEED_BUTTON_DOUBLE) != null ? "✅" : "❌"));
+    }
+
+    private static void createPlaceholderImage(String key) {
+        // 创建简单的占位图片
+        BufferedImage placeholder = new BufferedImage(50, 50, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = placeholder.createGraphics();
+        g2d.setColor(Color.RED);
+        g2d.fillRect(0, 0, 50, 50);
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(key, 5, 25);
+        g2d.dispose();
+        
+        imageMap.put(key, placeholder);
+        System.out.println("🟧 创建占位图片: " + key);
     }
 
     /**
@@ -143,14 +197,11 @@ public class GameLoad {
                 "\n# UI图片\n" +
                 "shovel_idle=resources/images/ui/shovel/shovel_idle.png\n" +
                 "shovel_hover=resources/images/ui/shovel/shovel_hover.png\n" +
-                "shovel_active=resources/images/ui/shovel/shovel_active.png\n" +
-                "\n# 特效图片\n" +
-                "zombie_crush_effect_1=resources/images/effects/zombie_crush_1.png\n" +
-                "zombie_crush_effect_2=resources/images/effects/zombie_crush_2.png\n";
+                "shovel_active=resources/images/ui/shovel/shovel_active.png\n";
 
             // 使用 OutputStreamWriter 替代 FileWriter(File, Charset) 以兼容 JDK 8
             try (OutputStreamWriter writer = new OutputStreamWriter(
-                    new FileOutputStream(file), StandardCharsets.UTF_8)) { //
+                    new FileOutputStream(file), StandardCharsets.UTF_8)) {
                 writer.write(defaultContent);
             }
 
@@ -184,7 +235,7 @@ public class GameLoad {
             // 注意：newInstance() 在 JDK 9+ 中已被废弃，但在 JDK 8 中仍是常用方式
             Class<?> class1 = objMap.get(str);
             if (class1 != null) {
-                Object newInstance = class1.newInstance(); //
+                Object newInstance = class1.newInstance();
                 if (newInstance instanceof ElementObj) {
                     return (ElementObj) newInstance;
                 }
@@ -252,12 +303,11 @@ public class GameLoad {
                 "pea=com.tedu.element.projectiles.Pea\n" +
                 "\n# 道具类\n" +
                 "sun=com.tedu.element.items.Sun\n" +
-                "lawn_mower=com.tedu.element.items.LawnMower\n" +
-                "crushed_effect=com.tedu.element.effects.CrushedEffect\n";
+                "lawn_mower=com.tedu.element.items.LawnMower\n" ;
 
             // 使用 OutputStreamWriter 替代 FileWriter(File, Charset) 以兼容 JDK 8
             try (OutputStreamWriter writer = new OutputStreamWriter(
-                    new FileOutputStream(file), StandardCharsets.UTF_8)) { //
+                    new FileOutputStream(file), StandardCharsets.UTF_8)) {
                 writer.write(defaultContent);
             }
 
@@ -321,8 +371,13 @@ public class GameLoad {
      * 调试方法：打印所有已加载的图片
      */
     public static void debugPrintLoadedImages() {
-        System.out.println("\n=== 已加载的图片资源 ===");
+        System.out.println("\n=== 已加载的ImageIcon图片资源 ===");
         for (Map.Entry<String, ImageIcon> entry : imgMap.entrySet()) {
+            System.out.println(entry.getKey() + " -> " + (entry.getValue() != null ? "✅" : "❌"));
+        }
+        
+        System.out.println("\n=== 已加载的Image图片资源 ===");
+        for (Map.Entry<String, Image> entry : imageMap.entrySet()) {
             System.out.println(entry.getKey() + " -> " + (entry.getValue() != null ? "✅" : "❌"));
         }
         System.out.println("========================\n");
@@ -348,6 +403,31 @@ public class GameLoad {
         LawnMower mower = createLawnMower(0);
         if (mower != null) {
             System.out.println("✅ 成功创建小推车: " + mower);
+        }
+    }
+    
+    public static void validateResources() {
+        // 检查速度按钮图片是否存在
+        checkResourceExists("resources/images/ui/speed_1x.png");
+        checkResourceExists("resources/images/ui/speed_2x.png");
+    }
+
+    private static void checkResourceExists(String path) {
+        try {
+            java.net.URL resUrl = GameLoad.class.getClassLoader().getResource(path);
+            if (resUrl == null) {
+                System.err.println("❌ 资源文件不存在: " + path);
+                
+                // 尝试在项目目录中查找
+                File file = new File(path);
+                System.out.println("    绝对路径: " + file.getAbsolutePath());
+                System.out.println("    文件存在: " + file.exists());
+            } else {
+                System.out.println("✅ 资源验证通过: " + path);
+            }
+        } catch (Exception e) {
+            System.err.println("资源验证异常: " + path);
+            e.printStackTrace();
         }
     }
 }

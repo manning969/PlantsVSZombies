@@ -24,9 +24,34 @@ public class ElementManager {
 	//所有元素都可存放到Map集合中，显示模块只需要获取到Map即可
 	//调用元素基类的showElement()方法
 	private Map<GameElement, List<ElementObj>> gameElements;
-	
+	private CollisionDetector collisionDetector = new CollisionDetector();
 	private List<Rectangle> mowedAreas;
 	
+	// ================= 新增方法 =================
+    /**
+     * 获取单例实例（与原有getManager()方法功能一致）
+     */
+    public static synchronized ElementManager getInstance() {
+        return getManager(); // 直接调用现有方法
+    }
+ 
+    /**
+     * 元素管理器更新方法（新增核心方法）
+     * @param deltaTime 时间增量（毫秒）
+     */
+    public void update(long deltaTime) {
+    	
+        // 1. 更新所有元素的逻辑状态
+        gameLogicAndCollisionDetection(deltaTime);
+        
+        // 2. 清理无效元素（死亡/完成任务）
+        cleanupElements();
+        
+        // 3. 执行碰撞检测
+        
+    }
+	
+    
 	public Map<GameElement, List<ElementObj>> getGameElements() {
 		return gameElements;
 		
@@ -101,21 +126,20 @@ public class ElementManager {
      * 游戏主循环中调用的所有元素的逻辑处理和碰撞检测
      */
     public void gameLogicAndCollisionDetection(long gameTime) {
-        // 1. 让所有元素执行自己的model逻辑 (遍历副本以避免ConcurrentModificationException)
+    	// 1. 让所有元素执行自己的model逻辑
         Map<GameElement, List<ElementObj>> currentElements = new HashMap<>();
         for (Map.Entry<GameElement, List<ElementObj>> entry : gameElements.entrySet()) {
             currentElements.put(entry.getKey(), new ArrayList<>(entry.getValue()));
         }
-
+ 
         for (Map.Entry<GameElement, List<ElementObj>> entry : currentElements.entrySet()) {
             List<ElementObj> elementsInType = entry.getValue();
             for (ElementObj obj : elementsInType) {
-                // 即使对象已经被标记为不Live，如果它在播放死亡动画，也需要继续更新其model来完成动画
-                obj.model(gameTime);
+                obj.model(gameTime); // 使用gameTime更新元素状态
             }
         }
-
-        // 2. 执行碰撞检测
+ 
+        // 2. 执行碰撞检测（原有逻辑保持不变）
         List<ElementObj> lawnMowers = getElementsByKey(GameElement.LAWN_MOWERS);
         List<ElementObj> zombies = getElementsByKey(GameElement.ZOMBIES);
         List<ElementObj> projectiles = getElementsByKey(GameElement.PROJECTILES);
