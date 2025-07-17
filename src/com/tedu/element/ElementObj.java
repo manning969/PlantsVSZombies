@@ -4,6 +4,8 @@ import java.awt.Graphics;
 import java.awt.Rectangle;
 import javax.swing.ImageIcon;
 
+import com.tedu.utils.GameConfig;
+
 //所有元素的基类
 //抽象类
 public abstract class ElementObj {
@@ -73,26 +75,29 @@ public abstract class ElementObj {
 	 *           - 通过文档和规范引导正确使用
 	 */
 	public void model(long gameTime) {
-		// 生存状态检查 - 这是必须的安全检查
-		if (!this.isLive()) {
-			return;
-		}
-		
-		// 调用标准模板方法
-		executeStandardTemplate(gameTime);
+	    // 生存状态检查 - 这是必须的安全检查
+	    if (!this.isLive()) {
+	        return;
+	    }
+	    
+	    // 应用速度倍数到游戏时间
+	    long scaledGameTime = gameTime * GameConfig.currentSpeed;
+	    
+	    // 调用标准模板方法，传递缩放后的时间
+	    executeStandardTemplate(scaledGameTime);
 	}
 	
 	/**
 	 * 标准模板执行方法 - 提供给子类调用的标准流程
 	 * @param gameTime 游戏时间
 	 */
-	protected final void executeStandardTemplate(long gameTime) {
-		// 先换装
-		updateImage();
-		// 再移动
-		move();
-		// 再发射子弹/执行特殊行动
-		add(gameTime);
+	protected final void executeStandardTemplate(long scaledGameTime) {
+	    // 先换装
+	    updateImage();
+	    // 再移动
+	    move();
+	    // 再发射子弹/执行特殊行动
+	    add(scaledGameTime);
 	}
 	
 	/**

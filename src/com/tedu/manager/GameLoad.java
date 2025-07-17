@@ -10,6 +10,11 @@ import java.util.Properties;
 import java.util.Set;
 import javax.swing.ImageIcon;
 import com.tedu.element.ElementObj;
+
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 // import java.io.FileWriter; // 移除或注释掉这个导入，如果你要替换掉它
@@ -29,7 +34,7 @@ public class GameLoad {
 
     // 图片集合
     public static Map<String, ImageIcon> imgMap = new HashMap<>();
-
+    public static Map<String, Image> imageMap = new HashMap<>();
     // 用于读取文件的类
     private static Properties pro = new Properties();
 
@@ -69,8 +74,60 @@ public class GameLoad {
         }
         
         validateDeathAnimations();
+        
+        // 加载加速按钮图片（新增）
+        loadSpeedButtonImages();
+        
+        loadAudio();
+        
+        // 调试输出
+        debugPrintLoadedImages();
     }
 
+    /**
+     * 加载加速按钮图片（新增方法）
+     */
+    private static void loadSpeedButtonImages() {
+        // 使用 imgMap 而不是 imageMap
+        ImageIcon normalIcon = imgMap.get(GameConfig.SPEED_BUTTON_NORMAL);
+        ImageIcon doubleIcon = imgMap.get(GameConfig.SPEED_BUTTON_DOUBLE);
+        
+        if (normalIcon != null) {
+            imageMap.put(GameConfig.SPEED_BUTTON_NORMAL, normalIcon.getImage());
+        } else {
+            System.err.println("❌ 未找到速度按钮普通图标: " + GameConfig.SPEED_BUTTON_NORMAL);
+            createPlaceholderImage(GameConfig.SPEED_BUTTON_NORMAL);
+        }
+        
+        if (doubleIcon != null) {
+            imageMap.put(GameConfig.SPEED_BUTTON_DOUBLE, doubleIcon.getImage());
+        } else {
+            System.err.println("❌ 未找到速度按钮加速图标: " + GameConfig.SPEED_BUTTON_DOUBLE);
+            createPlaceholderImage(GameConfig.SPEED_BUTTON_DOUBLE);
+        }
+        
+        // 调试输出
+        System.out.println("速度按钮图片加载状态:");
+        System.out.println("  " + GameConfig.SPEED_BUTTON_NORMAL + ": " + 
+                          (imageMap.get(GameConfig.SPEED_BUTTON_NORMAL) != null ? "✅" : "❌"));
+        System.out.println("  " + GameConfig.SPEED_BUTTON_DOUBLE + ": " + 
+                          (imageMap.get(GameConfig.SPEED_BUTTON_DOUBLE) != null ? "✅" : "❌"));
+    }
+
+    private static void createPlaceholderImage(String key) {
+        // 创建简单的占位图片
+        BufferedImage placeholder = new BufferedImage(50, 50, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = placeholder.createGraphics();
+        g2d.setColor(Color.RED);
+        g2d.fillRect(0, 0, 50, 50);
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(key, 5, 25);
+        g2d.dispose();
+        
+        imageMap.put(key, placeholder);
+        System.out.println("🟧 创建占位图片: " + key);
+    }
+    
     /**
      * 验证死亡动画图片是否正确加载
      */
@@ -128,29 +185,30 @@ public class GameLoad {
                 "normal_walk=resources/images/zombies/normal/normal_walk.gif\n" +
                 "normal_eat=resources/images/zombies/normal/normal_eat.gif\n" +
                 "normal_die=resources/images/zombies/normal/normal_die.gif\n" +
+                "normal_head=resources/images/zombies/normal/normal_head.gif\n" +
+                "normal_dying=resources/images/zombies/normal/normal_dying.gif\n" +
                 "conehead_walk=resources/images/zombies/conehead/conehead_walk.gif\n" +
                 "conehead_eat=resources/images/zombies/conehead/conehead_eat.gif\n" +
                 "conehead_die=resources/images/zombies/conehead/conehead_die.gif\n" +
+                "conehead_dying=resources/images/zombies/conehead/conehead_dying.gif\n" +
                 "\n# 子弹图片\n" +
                 "pea=resources/images/projectiles/pea.png\n" +
                 "\n# 道具图片\n" +
                 "sun_normal=resources/images/items/sun/sun_normal.png\n" +
-                "\n# 背景图片\n" +
-                "background_day=resources/images/backgrounds/day/background_day.png\n" +
                 "\n# 小推车图片\n" +
                 "lawn_mower_idle=resources/images/items/lawnmower/lawn_mower_idle.png\n" +
                 "lawn_mower_active=resources/images/items/lawnmower/lawn_mower_active.png\n" +
+                "\n# 卡片图片\n" +
+	             "peashooter_idle_card=resources/images/items/cards/peashooter_card.png\n" +
+	             "sunflower_idle_card=resources/images/items/cards/sunflower_card.png\n" +
+	             "wallnut_full_card=resources/images/items/cards/wallnut_card.png\n" +
                 "\n# UI图片\n" +
                 "shovel_idle=resources/images/ui/shovel/shovel_idle.png\n" +
                 "shovel_hover=resources/images/ui/shovel/shovel_hover.png\n" +
-                "shovel_active=resources/images/ui/shovel/shovel_active.png\n" +
-                "\n# 特效图片\n" +
-                "zombie_crush_effect_1=resources/images/effects/zombie_crush_1.png\n" +
-                "zombie_crush_effect_2=resources/images/effects/zombie_crush_2.png\n";
+                "shovel_active=resources/images/ui/shovel/shovel_active.png\n";
 
-            // 使用 OutputStreamWriter 替代 FileWriter(File, Charset) 以兼容 JDK 8
             try (OutputStreamWriter writer = new OutputStreamWriter(
-                    new FileOutputStream(file), StandardCharsets.UTF_8)) { //
+                    new FileOutputStream(file), StandardCharsets.UTF_8)) {
                 writer.write(defaultContent);
             }
 
@@ -252,8 +310,7 @@ public class GameLoad {
                 "pea=com.tedu.element.projectiles.Pea\n" +
                 "\n# 道具类\n" +
                 "sun=com.tedu.element.items.Sun\n" +
-                "lawn_mower=com.tedu.element.items.LawnMower\n" +
-                "crushed_effect=com.tedu.element.effects.CrushedEffect\n";
+                "lawn_mower=com.tedu.element.items.LawnMower\n" ;
 
             // 使用 OutputStreamWriter 替代 FileWriter(File, Charset) 以兼容 JDK 8
             try (OutputStreamWriter writer = new OutputStreamWriter(
@@ -328,26 +385,136 @@ public class GameLoad {
         System.out.println("========================\n");
     }
 
+
+	/**
+	 * 加载音频资源
+	 */
+	public static void loadAudio() {
+	    System.out.println("开始加载音频资源...");
+	    
+	    AudioManager audioManager = AudioManager.getInstance();
+	    
+	    // 加载背景音乐
+	    loadBackgroundMusic(audioManager);
+	    
+	    // 加载音效
+	    loadSoundEffects(audioManager);
+	    
+	    System.out.println("音频资源加载完成！");
+	}
+	
+
+	/**
+	 * 加载背景音乐
+	 */
+	private static void loadBackgroundMusic(AudioManager audioManager) {
+	    // 主菜单音乐
+	    audioManager.loadAudio("menu_music", "resources/sounds/music/menu_background.wav");
+	    
+	    // 游戏中背景音乐
+	    audioManager.loadAudio("game_music", "resources/sounds/music/game_background.wav");
+	    
+	    // 白天关卡音乐
+	    audioManager.loadAudio("day_music", "resources/sounds/music/day_stage.wav");
+	    
+	    // 夜晚关卡音乐（如果有）
+	    audioManager.loadAudio("night_music", "resources/sounds/music/night_stage.wav");
+	    
+	    // 最终波次音乐
+	    audioManager.loadAudio("final_wave_music", "resources/sounds/music/final_wave.wav");
+	    
+	    // 胜利音乐
+	    audioManager.loadAudio("victory_music", "resources/sounds/music/victory.wav");
+	    
+	    // 失败音乐
+	    audioManager.loadAudio("defeat_music", "resources/sounds/music/defeat.wav");
+	}
+	
+	/**
+	 * 加载音效
+	 */
+	private static void loadSoundEffects(AudioManager audioManager) {
+	    // 植物相关音效
+	    audioManager.loadAudio("plant_place", "resources/sounds/sfx/plant_place.wav");
+	    audioManager.loadAudio("plant_shoot", "resources/sounds/sfx/plant_shoot.wav");
+	    audioManager.loadAudio("shovel_dig", "resources/sounds/sfx/shovel_dig.wav");
+	    
+	    // 僵尸相关音效
+	    audioManager.loadAudio("zombie_groan", "resources/sounds/sfx/zombie_groan.wav");
+	    audioManager.loadAudio("zombie_eating", "resources/sounds/sfx/zombie_eating.wav");
+	    audioManager.loadAudio("zombie_death", "resources/sounds/sfx/zombie_death.wav");
+	    
+	    // 阳光和道具音效
+	    audioManager.loadAudio("sun_collect", "resources/sounds/sfx/sun_collect.wav");
+	    audioManager.loadAudio("sun_drop", "resources/sounds/sfx/sun_drop.wav");
+	    
+	    // 小推车音效
+	    audioManager.loadAudio("lawnmower_start", "resources/sounds/sfx/lawnmower_start.wav");
+	    audioManager.loadAudio("lawnmower_running", "resources/sounds/sfx/lawnmower_running.wav");
+	    
+	    // UI音效
+	    audioManager.loadAudio("button_click", "resources/sounds/sfx/button_click.wav");
+	    audioManager.loadAudio("card_select", "resources/sounds/sfx/card_select.wav");
+	    
+	    // 游戏状态音效
+	    audioManager.loadAudio("wave_start", "resources/sounds/sfx/wave_start.wav");
+	    audioManager.loadAudio("wave_complete", "resources/sounds/sfx/wave_complete.wav");
+	    audioManager.loadAudio("game_over", "resources/sounds/sfx/game_over.wav");
+	}
+
+	/**
+	 * 创建默认的音频配置文件
+	 */
+	private static void createDefaultAudioConfig() {
+	    try {
+	        File audioDir = new File("resources/sounds");
+	        if (!audioDir.exists()) {
+	            audioDir.mkdirs();
+	            System.out.println("创建音频目录: " + audioDir.getAbsolutePath());
+	        }
+	        
+	        // 创建音效子目录
+	        new File("resources/sounds/music").mkdirs();
+	        new File("resources/sounds/sfx").mkdirs();
+	        
+	        System.out.println("✅ 音频目录结构创建完成");
+	        System.out.println("请将音频文件放置到以下目录：");
+	        System.out.println("  背景音乐: resources/sounds/music/");
+	        System.out.println("  音效: resources/sounds/sfx/");
+	        
+	    } catch (Exception e) {
+	        System.err.println("❌ 创建音频目录失败: " + e.getMessage());
+	    }
+	}
+
     public static void main(String[] args) {
-        System.out.println("测试资源加载...");
         loadImg();
         loadObj();
         debugPrintLoadedImages();
+    }
+    
+    public static void validateResources() {
+        // 检查速度按钮图片是否存在
+        checkResourceExists("resources/images/ui/speed_1x.png");
+        checkResourceExists("resources/images/ui/speed_2x.png");
+    }
 
-        // 测试创建对象
-        ElementObj peashooter = createPlant("peashooter", 2, 1);
-        if (peashooter != null) {
-            System.out.println("✅ 成功创建豌豆射手: " + peashooter);
-        }
-
-        ElementObj zombie = createZombie("normal_zombie", 1);
-        if (zombie != null) {
-            System.out.println("✅ 成功创建普通僵尸: " + zombie);
-        }
-
-        LawnMower mower = createLawnMower(0);
-        if (mower != null) {
-            System.out.println("✅ 成功创建小推车: " + mower);
+    private static void checkResourceExists(String path) {
+        try {
+            java.net.URL resUrl = GameLoad.class.getClassLoader().getResource(path);
+            if (resUrl == null) {
+                System.err.println("❌ 资源文件不存在: " + path);
+                
+                // 尝试在项目目录中查找
+                File file = new File(path);
+                System.out.println("    绝对路径: " + file.getAbsolutePath());
+                System.out.println("    文件存在: " + file.exists());
+            } else {
+                System.out.println("✅ 资源验证通过: " + path);
+            }
+        } catch (Exception e) {
+            System.err.println("资源验证异常: " + path);
+            e.printStackTrace();
         }
     }
 }

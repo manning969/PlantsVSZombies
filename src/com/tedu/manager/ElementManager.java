@@ -24,13 +24,36 @@ public class ElementManager {
 	//所有元素都可存放到Map集合中，显示模块只需要获取到Map即可
 	//调用元素基类的showElement()方法
 	private Map<GameElement, List<ElementObj>> gameElements;
-	
+	private CollisionDetector collisionDetector = new CollisionDetector();
 	private List<Rectangle> mowedAreas;
 	
 	public Map<GameElement, List<ElementObj>> getGameElements() {
 		return gameElements;
 		
 	}
+	
+	 /**
+     * 获取单例实例（与原有getManager()方法功能一致）
+     */
+    public static synchronized ElementManager getInstance() {
+        return getManager(); // 直接调用现有方法
+    }
+ 
+    /**
+     * 元素管理器更新方法（新增核心方法）
+     * @param deltaTime 时间增量（毫秒）
+     */
+    public void update(long deltaTime) {
+    	
+        // 1. 更新所有元素的逻辑状态
+        gameLogicAndCollisionDetection(deltaTime);
+        
+        // 2. 清理无效元素（死亡/完成任务）
+        cleanupElements();
+        
+        // 3. 执行碰撞检测
+        
+    }
 	
 	//添加元素方法，一般由加载器调用
 	public void addElement(ElementObj obj, GameElement ge) {

@@ -39,6 +39,13 @@ public class Sun extends ElementObj {
     private double floatSpeed = 0.1;     // 悬浮速度
     private long animationTime = 0;      // 动画时间计数器 (用于sin函数)
 
+    // 新增：收集动画相关
+    private boolean isCollecting = false;
+    private int collectTargetX = 20; // 阳光栏x
+    private int collectTargetY = 35; // 阳光栏y
+    private double collectSpeed = 12.0; // 收集动画速度
+    private double collectAnimX, collectAnimY;
+    
     // 默认构造函数，通常用于反射创建，后续需要通过createElement设置属性
     public Sun() {
         super();
@@ -129,10 +136,10 @@ public class Sun extends ElementObj {
                 // 基于动画时间计算Y轴偏移
                 drawY += (int)(Math.sin(animationTime * floatSpeed) * floatAmplitude);
             }
-
-            g.drawImage(this.getIcon().getImage(),
-                       this.getX(), drawY,
-                       this.getW(), this.getH(), null);
+            g.drawImage(this.getIcon().getImage(), getX(), drawY, getW(), getH(), null);
+        } else if (isCollecting) {
+            // 收集动画阶段
+            g.drawImage(this.getIcon().getImage(), (int)collectAnimX, (int)collectAnimY, getW(), getH(), null);
         }
     }
 
@@ -141,16 +148,33 @@ public class Sun extends ElementObj {
         if (!this.isLive()) {
             return;
         }
+        if (isCollecting) {
+            // 收集动画：快速移动到目标点 - 应用速度倍数
+            double speedMultiplier = GameConfig.currentSpeed;
+            double dx = collectTargetX - collectAnimX;
+            double dy = collectTargetY - collectAnimY;
+            double dist = Math.sqrt(dx*dx + dy*dy);
+            double actualSpeed = collectSpeed * speedMultiplier;
+            
+            if (dist < actualSpeed) {
+                // 到达目标点，销毁
+                this.setLive(false);
+                return;
+            }
+            collectAnimX += actualSpeed * dx / dist;
+            collectAnimY += actualSpeed * dy / dist;
+            return;
+        }
 
         if (isDropping) {
             updatePhysics();
         } else {
-            // 静止状态的悬浮动画计时
-            animationTime++;
+            // 静止状态的悬浮动画计时 - 应用速度倍数
+            animationTime += GameConfig.currentSpeed;
         }
 
-        // 增加存在时间
-        lifeTime++;
+        // 增加存在时间 - 应用速度倍数
+        lifeTime += GameConfig.currentSpeed;
 
         // 检查是否超时
         if (lifeTime >= maxLifeTime) {
@@ -159,61 +183,65 @@ public class Sun extends ElementObj {
         }
     }
 
-    // 更新阳光的物理状态 (位置，速度，重力，弹跳)
-    private void updatePhysics() {
-        // 更新位置
-        setX((int)(getX() + velocityX));
-        setY((int)(getY() + velocityY));
-
-        // 应用重力
-        velocityY += gravity;
-
-        // 应用水平摩擦力（空气阻力），使其逐渐减速
-        velocityX *= 0.99; // 略微的空气阻力
-
-        // 检查是否到达地面
-        if (getY() >= groundY) {
-            setY((int)groundY); // 确保Y坐标停留在地面
-
-            // 处理弹跳
-            if (bounceCount < maxBounces && Math.abs(velocityY) > 0.5) { // 速度过小则不弹跳
-                velocityY = -velocityY * bounceDamping; // 反向并减速
-                velocityX *= friction; // 水平速度受地面摩擦力影响
-                bounceCount++;
-
-                // 向日葵阳光落地后添加一点随机水平速度使弹跳更自然
-                if (sunType == SunType.SUNFLOWER && bounceCount == 1) {
-                    velocityX += (Math.random() - 0.5) * 0.5; // 轻微随机左右弹开
-                }
-            } else {
-                // 停止弹跳，进入静止悬浮状态
-                velocityY = 0;
-                velocityX = 0;
-                isDropping = false;
-                // animationTime在initializeDefaultValues已随机初始化
-                System.out.println("阳光落地并静止");
-            }
-        }
-
-        // 边界检查 - 防止阳光飞出屏幕
-        if (getX() < 0) {
-            setX(0);
-            velocityX = Math.abs(velocityX) * 0.5; // 反弹并减速
-        } else if (getX() > GameConfig.GAME_WIDTH - getW()) {
-            setX(GameConfig.GAME_WIDTH - getW());
-            velocityX = -Math.abs(velocityX) * 0.5; // 反弹并减速
-        }
-    }
+    // 更新阳光的物理状态 (位置，速度，重力，弹跳) - 支持倍速
+	private void updatePhysics() {
+	    // 应用速度倍数
+	    double speedMultiplier = GameConfig.currentSpeed;
+	    
+	    // 更新位置
+	    setX((int)(getX() + velocityX * speedMultiplier));
+	    setY((int)(getY() + velocityY * speedMultiplier));
+	
+	    // 应用重力
+	    velocityY += gravity * speedMultiplier;
+	
+	    // 应用水平摩擦力（空气阻力），使其逐渐减速
+	    velocityX *= Math.pow(0.99, speedMultiplier); // 按倍速调整摩擦力
+	
+	    // 检查是否到达地面
+	    if (getY() >= groundY) {
+	        setY((int)groundY); // 确保Y坐标停留在地面
+	
+	        // 处理弹跳
+	        if (bounceCount < maxBounces && Math.abs(velocityY) > 0.5) { // 速度过小则不弹跳
+	            velocityY = -velocityY * bounceDamping; // 反向并减速
+	            velocityX *= friction; // 水平速度受地面摩擦力影响
+	            bounceCount++;
+	
+	            // 向日葵阳光落地后添加一点随机水平速度使弹跳更自然
+	            if (sunType == SunType.SUNFLOWER && bounceCount == 1) {
+	                velocityX += (Math.random() - 0.5) * 0.5; // 轻微随机左右弹开
+	            }
+	        } else {
+	            // 停止弹跳，进入静止悬浮状态
+	            velocityY = 0;
+	            velocityX = 0;
+	            isDropping = false;
+	            // animationTime在initializeDefaultValues已随机初始化
+	            System.out.println("阳光落地并静止");
+	        }
+	    }
+	
+	    // 边界检查 - 防止阳光飞出屏幕
+	    if (getX() < 0) {
+	        setX(0);
+	        velocityX = Math.abs(velocityX) * 0.5; // 反弹并减速
+	    } else if (getX() > GameConfig.GAME_WIDTH - getW()) {
+	        setX(GameConfig.GAME_WIDTH - getW());
+	        velocityX = -Math.abs(velocityX) * 0.5; // 反弹并减速
+	    }
+	}
 
     /**
      * 收集阳光
      */
     public void collect() {
-        if (!isCollected) {
-            isCollected = true;
-            this.setLive(false); // 设置为非活动状态，ElementManager 会移除它
-            System.out.println("收集了 " + value + " 点阳光");
-        }
+        if (isCollected || isCollecting) return;
+        isCollected = true;
+        // 启动收集动画
+        isCollecting = true;
+        collectAnimX = getX();
+        collectAnimY = getY();
     }
 
     /**
@@ -276,14 +304,49 @@ public class Sun extends ElementObj {
         int startX = sunflowerX + (GameConfig.PLANT_WIDTH / 2) - (GameConfig.SUN_WIDTH / 2);
         int startY = sunflowerY - GameConfig.SUN_HEIGHT; // 稍高于向日葵
 
-        // 向日葵阳光的目标地面位置在向日葵所在的格子里或其下方
-        int groundY = sunflowerY + GameConfig.GRID_HEIGHT - (GameConfig.SUN_HEIGHT / 2) + 5; // 落在格子底部
-
+        // === 修复：计算安全的落地位置，确保不超出窗口 ===
+        int groundY = calculateSafeSunDropPosition(sunflowerY);
+        
         // 随机的初始抛物线轨迹速度
         double initialVelocityX = (Math.random() - 0.5) * 4.0; // -2.0 到 2.0
         double initialVelocityY = -(Math.random() * 2.0 + 3.0); // -3.0 到 -5.0 (向上抛)
 
         return new Sun(startX, startY, groundY, initialVelocityX, initialVelocityY);
+    }
+    
+    /**
+     * 计算安全的阳光落地位置，确保不超出窗口
+     */
+    private static int calculateSafeSunDropPosition(int sunflowerY) {
+        // 获取实际窗体高度 (使用 GameJFrame 的实际高度)
+        int actualWindowHeight = com.tedu.show.GameJFrame.GameY;
+        
+        // 计算安全的窗口底部边界，预留更多空间给阳光显示和点击
+        int safeBottomMargin = 50; // 距离窗口底部50像素的安全边距
+        int windowBottom = actualWindowHeight - safeBottomMargin;
+        
+        // 原始计算：在向日葵下方一定距离
+        int preferredGroundY = sunflowerY + GameConfig.GRID_HEIGHT + 20;
+        
+        // 确保阳光落地位置在安全范围内
+        int safeGroundY = Math.min(preferredGroundY, windowBottom);
+        
+        // 特殊处理：如果向日葵在最底行，确保阳光至少在向日葵下方30像素
+        int plantRow = (sunflowerY - GameConfig.GRID_START_Y) / GameConfig.GRID_HEIGHT;
+        if (plantRow >= GameConfig.GRID_ROWS - 1) {
+            // 最底行向日葵的特殊处理
+            int minBottomRowDistance = 35; // 最底行向日葵下方至少35像素
+            int bottomRowGroundY = sunflowerY + minBottomRowDistance;
+            safeGroundY = Math.min(bottomRowGroundY, windowBottom);
+        }
+        
+        // 最终安全检查
+        if (safeGroundY > windowBottom) {
+            safeGroundY = windowBottom;
+            System.out.println("⚠️  落地位置被强制调整到窗口边界内: " + safeGroundY);
+        }
+        
+        return safeGroundY;
     }
 
     @Override

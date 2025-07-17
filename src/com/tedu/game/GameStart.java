@@ -98,7 +98,6 @@ public class GameStart {
         System.out.println();
         System.out.println("鼠标操作:");
         System.out.println("  左键点击 - 种植选中的植物 / 收集阳光");
-        System.out.println("  右键点击 - 铲除植物 (暂未实现)");
         System.out.println();
         System.out.println("游戏目标:");
         System.out.println("  - 使用植物抵御僵尸入侵");

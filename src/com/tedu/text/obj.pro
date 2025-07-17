@@ -13,4 +13,3 @@ pea=com.tedu.element.projectiles.Pea
 # 道具类
 sun=com.tedu.element.items.Sun
 lawn_mower=com.tedu.element.items.LawnMower
-crushed_effect=com.tedu.element.effects.CrushedEffect

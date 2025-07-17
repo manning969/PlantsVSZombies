@@ -2,6 +2,7 @@ package com.tedu.manager;
 
 import com.tedu.element.Zombie;
 import com.tedu.element.zombies.NormalZombie;
+import com.tedu.utils.GameConfig;
 import com.tedu.element.zombies.ConeheadZombie;
 import java.util.Random;
 
@@ -9,6 +10,12 @@ import java.util.Random;
  * 僵尸工厂类 - 用于创建不同类型的僵尸
  */
 public class ZombieFactory {
+	
+	public static final boolean ENABLE_ZOMBIE_KILL_REWARD = GameConfig.ENABLE_ZOMBIE_KILL_REWARD; // 是否启用击杀奖励
+	public static final int ZOMBIE_KILL_BASE_REWARD = GameConfig.ZOMBIE_KILL_BASE_REWARD;         // 基础击杀奖励
+	public static final int NORMAL_ZOMBIE_REWARD = GameConfig.NORMAL_ZOMBIE_REWARD;           // 普通僵尸奖励
+	public static final int CONEHEAD_ZOMBIE_REWARD = GameConfig.CONEHEAD_ZOMBIE_REWARD;         // 路障僵尸奖励  
+	public static final int BUCKETHEAD_ZOMBIE_REWARD = GameConfig.BUCKETHEAD_ZOMBIE_REWARD;       // 铁桶僵尸奖励
     
     public enum ZombieType {
         NORMAL,
@@ -119,6 +126,47 @@ public class ZombieFactory {
             return ZombieType.CONEHEAD;
         } else {
             return ZombieType.NORMAL; // 默认类型
+        }
+    }
+    /**
+     * 根据僵尸类型获取击杀奖励
+     */
+    public static int getZombieKillReward(String zombieType) {
+        if (!ENABLE_ZOMBIE_KILL_REWARD) {
+            return 0;
+        }
+        
+        switch (zombieType.toLowerCase()) {
+            case "normal":
+            case "normal_zombie":
+                return NORMAL_ZOMBIE_REWARD;
+            case "conehead":
+            case "conehead_zombie":
+                return CONEHEAD_ZOMBIE_REWARD;
+            case "buckethead":
+            case "buckethead_zombie":
+                return BUCKETHEAD_ZOMBIE_REWARD;
+            default:
+                return ZOMBIE_KILL_BASE_REWARD; // 默认奖励
+        }
+    }
+
+    /**
+     * 获取僵尸类型的显示名称
+     */
+    public static String getZombieDisplayName(String zombieType) {
+        switch (zombieType.toLowerCase()) {
+            case "normal":
+            case "normal_zombie":
+                return "普通僵尸";
+            case "conehead":
+            case "conehead_zombie":
+                return "路障僵尸";
+            case "buckethead":
+            case "buckethead_zombie":
+                return "铁桶僵尸";
+            default:
+                return "僵尸";
         }
     }
 }

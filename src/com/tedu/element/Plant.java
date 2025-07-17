@@ -56,7 +56,9 @@ public abstract class Plant extends ElementObj {
      * @return 是否可以行动
      */
     protected boolean canPerformAction(long gameTime, int interval) {
-        return gameTime - lastActionTime >= interval;
+        // 倍速时间隔会相应缩短
+        long scaledInterval = interval / GameConfig.currentSpeed;
+        return gameTime - lastActionTime >= scaledInterval;
     }
     
     /**
@@ -79,14 +81,17 @@ public abstract class Plant extends ElementObj {
             return;
         }
         
+        // 应用速度倍数到游戏时间
+        long scaledGameTime = gameTime * GameConfig.currentSpeed;
+        
         // 执行植物特有的行动
-        performAction(gameTime);
+        performAction(scaledGameTime);
         
         // 更新图像（如果有动画）
         updateImage();
     }
     
-    // Getter和Setter方法
+    // canPerformAction和Setter方法
     public int getHp() {
         return hp;
     }

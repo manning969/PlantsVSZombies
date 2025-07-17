@@ -12,14 +12,12 @@ import javax.swing.ImageIcon;
 
 /**
  * 路障僵尸类 - 修复死亡动画切换问题，增加死亡动画宽度调整
+ * 新增：dying状态下啃食时保持dying动画
  */
 public class ConeheadZombie extends Zombie {
     private long lastAttackTime = 0;
     private long lastMoveTime = 0;
     private static final int ATTACK_INTERVAL = 100;
-
-    private static final int CONEHEAD_ZOMBIE_HP = 700;
-    private static final int CONEHEAD_ZOMBIE_DAMAGE = 15;
 
     public ConeheadZombie() {
         super();
@@ -34,21 +32,30 @@ public class ConeheadZombie extends Zombie {
         super(GameConfig.GAME_WIDTH,
               GameConfig.GRID_START_Y + rowIndex * GameConfig.GRID_HEIGHT + GameConfig.ZOMBIE_OFFSET_Y,
               rowIndex,
-              CONEHEAD_ZOMBIE_HP,
+              GameConfig.CONEHEAD_ZOMBIE_HP,
               GameConfig.ZOMBIE_SPEED,
-              CONEHEAD_ZOMBIE_DAMAGE,
+              GameConfig.CONEHEAD_ZOMBIE_DAMAGE,
               GameLoad.imgMap.get("conehead_walk"));
         this.lastAttackTime = 0;
-        this.lastMoveTime = 0;
-        this.dieAnimationDuration = DEFAULT_DIE_ANIMATION_DURATION + 200;
+        this.setLastMoveTime(0);
+        
+        // *** 修改：DYING状态表示重伤，不需要自动切换持续时间 ***
+        this.dyingAnimationDuration = Long.MAX_VALUE; // 永不自动切换，只有死亡才切换
+        this.dieAnimationDuration = DEFAULT_DIE_ANIMATION_DURATION + 200; // 路障僵尸死亡动画稍长
         
         // 设置死亡动画的额外宽度 - 路障僵尸死亡动画更宽一些
-        this.dieAnimationExtraWidth = 50; // 比普通僵尸更宽
-        // 可选：设置X轴偏移，让动画居中显示
-        this.dieAnimationXOffset = -25; // 向左偏移25像素来居中
+        this.dieAnimationExtraWidth = 50;
+        this.dieAnimationXOffset = -25;
         
-        System.out.println("✅ 路障僵尸创建，死亡动画宽度设置为: " + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth));
+        // *** 新增：设置重伤动画的宽度和偏移 ***
+        this.dyingAnimationExtraWidth = 70; // 重伤状态的额外宽度
+        this.dyingAnimationXOffset = -25;   // 重伤状态的X偏移
+        
+        System.out.println("✅ 路障僵尸创建 - 血量: " + GameConfig.CONEHEAD_ZOMBIE_HP + 
+                         ", 半血阈值: " + (GameConfig.CONEHEAD_ZOMBIE_HP * 0.5) + 
+                         ", 死亡动画宽度: " + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth));
     }
+
 
     @Override
     public ElementObj createElement(String str) {
@@ -65,7 +72,6 @@ public class ConeheadZombie extends Zombie {
             java.io.InputStream inputStream = null;
             byte[] imageBytes = null;
             
-            // 注意：路障僵尸可能使用相同的死亡动画或不同的动画
             String deathGifPath = "resources/images/zombies/conehead/conehead_die.gif";
             java.io.File gifFile = new java.io.File(deathGifPath);
             
@@ -147,9 +153,9 @@ public class ConeheadZombie extends Zombie {
 
     @Override
     protected void checkForPlants() {
-        // 死亡状态下不检查植物
-        if (currentAnimationState == ZombieAnimationState.DIE || isDying()) {
-            return;
+        // *** 修改：只有真正死亡时才不检查植物，重伤状态下仍能检查 ***
+        if (currentAnimationState == ZombieAnimationState.DIE) {
+            return; // 只有死亡状态才不检查植物
         }
 
         if (isEating) {
@@ -169,13 +175,22 @@ public class ConeheadZombie extends Zombie {
                     this.getX() + this.getW() - 10 >= plant.getX() &&
                     this.getX() < plant.getX() + plant.getW() - 10) {
                     startEating(plant);
-                    System.out.println("🧟‍♂️ 路障僵尸开始啃食植物！行" + rowIndex);
+                    
+                    // *** 新增：根据状态显示不同信息 ***
+                    String stateInfo = "";
+                    if (currentAnimationState == ZombieAnimationState.DYING) {
+                        stateInfo = "（重伤状态）";
+                    }
+                    System.out.println("🧟‍♂️ 路障僵尸开始啃食植物！行" + rowIndex + stateInfo);
                     break;
                 }
             }
         }
     }
 
+    /**
+     * *** 修改：更新图像 - dying状态下啃食时保持dying动画 ***
+     */
     @Override
     protected void updateImage() {
         ImageIcon newIcon = null;
@@ -183,12 +198,22 @@ public class ConeheadZombie extends Zombie {
 
         switch (currentAnimationState) {
             case WALK:
-                iconKey = "normal_walk"; // 注意：这里可能需要改为 "conehead_walk"
+                iconKey = "conehead_walk";
                 newIcon = GameLoad.imgMap.get(iconKey);
                 break;
             case EAT:
-                iconKey = "normal_eat"; // 注意：这里可能需要改为 "conehead_eat"
+                iconKey = "conehead_eat";
                 newIcon = GameLoad.imgMap.get(iconKey);
+                break;
+            case DYING:
+                // *** 新增：dying状态下始终使用dying动画，即使在啃食 ***
+                iconKey = "conehead_dying";
+                newIcon = GameLoad.imgMap.get(iconKey);
+                
+                // 如果正在啃食，添加调试信息
+                if (isEating) {
+                    System.out.println("💔🍽️ 路障僵尸重伤状态下啃食，保持dying动画: " + iconKey);
+                }
                 break;
             case DIE:
                 // 死亡状态下不在这里更新图标，由 handleDeathAnimation 处理
@@ -203,23 +228,52 @@ public class ConeheadZombie extends Zombie {
             this.setIcon(newIcon);
         } else {
             System.err.println("⚠️ " + this.getClass().getSimpleName() + " 无法设置图片: " + iconKey);
+            // *** 新增：备用图片逻辑 ***
+            String fallbackKey = null;
+            if (iconKey.equals("conehead_dying")) {
+                fallbackKey = "conehead_walk"; // 如果没有重伤动画，使用行走动画
+            }
+            
+            if (fallbackKey != null) {
+                ImageIcon fallbackIcon = GameLoad.imgMap.get(fallbackKey);
+                if (fallbackIcon != null) {
+                    this.setIcon(fallbackIcon);
+                    System.out.println("🔄 路障僵尸使用备用图片: " + fallbackKey + " 代替 " + iconKey);
+                }
+            }
         }
     }
   
     @Override
     protected boolean canAttack(long gameTime) {
-        // 死亡状态下不能攻击
-        if (currentAnimationState == ZombieAnimationState.DIE || isDying()) {
-            return false;
+        // *** 修改：只有真正死亡时才不能攻击，重伤状态下仍能攻击 ***
+        if (currentAnimationState == ZombieAnimationState.DIE) {
+            return false; // 只有死亡状态才不能攻击
         }
 
         if (isEating) {
             if (gameTime - lastAttackTime >= ATTACK_INTERVAL) {
                 lastAttackTime = gameTime;
+                
+                // *** 新增：重伤状态下攻击频率稍慢 ***
+                if (currentAnimationState == ZombieAnimationState.DYING) {
+                    // 重伤状态下攻击间隔增加20%
+                    if (gameTime - lastAttackTime >= ATTACK_INTERVAL * 1.2) {
+                        return true;
+                    }
+                    return false;
+                }
+                
                 return true;
             }
         }
         return false;
+    }
+
+    
+    @Override
+    protected String getZombieType() {
+        return "conehead";
     }
 
     @Override
@@ -230,8 +284,62 @@ public class ConeheadZombie extends Zombie {
 
     @Override
     public String toString() {
+        double healthPercentage = (double) hp / maxHp;
+        String healthStatus = "";
+        
+        if (healthPercentage <= 0) healthStatus = "死亡";
+        else if (healthPercentage <= 0.25) healthStatus = "濒死";
+        else if (healthPercentage <= 0.5) healthStatus = "重伤";
+        else if (healthPercentage <= 0.75) healthStatus = "轻伤";
+        else healthStatus = "健康";
+        
         return "ConeheadZombie at (" + getX() + "," + getY() + ") row:" + rowIndex +
-               " HP:" + hp + "/" + maxHp + " State:" + currentAnimationState + 
-               " Dying:" + isDying() + " DieWidth:" + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth);
+               " HP:" + hp + "/" + maxHp + " (" + String.format("%.1f%%", healthPercentage * 100) + ")" +
+               " State:" + currentAnimationState + " HealthStatus:" + healthStatus +
+               " Dying:" + isDying() + " HasHead:" + hasHead() + " DieWidth:" + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth);
     }
+
+	public long getLastMoveTime() {
+		return lastMoveTime;
+	}
+
+	public void setLastMoveTime(long lastMoveTime) {
+		this.lastMoveTime = lastMoveTime;
+	}
+	
+	/**
+	 * 获取路障僵尸的重伤阈值
+	 * 路障僵尸血量较高，可以设置不同的重伤阈值
+	 */
+	public double getInjuryThreshold() {
+	    // 路障僵尸可能有更高的容错率，比如40%血量才进入重伤状态
+	    return 0.4; // 或者使用 0.5 与普通僵尸保持一致
+	}
+
+	/**
+	 * 检查是否应该进入重伤状态
+	 */
+	public boolean shouldEnterDyingState() {
+	    return (double) hp / maxHp <= getInjuryThreshold() && hp > 0;
+	}
+	
+	/**
+	 * *** 修改：受到伤害 - 增强调试版本，移除了自定义逻辑，使用父类的统一逻辑 ***
+	 */
+	@Override
+	public void takeDamage(int damage) {
+	    System.out.println("\n=== 路障僵尸takeDamage调试开始 ===");
+	    System.out.println("🔧 方法被调用: ConeheadZombie.takeDamage(" + damage + ")");
+	    System.out.println("🔧 当前状态: " + currentAnimationState);
+	    System.out.println("🔧 当前血量: " + hp + "/" + maxHp);
+	    System.out.println("🔧 isDying(): " + isDying());
+	    System.out.println("🔧 重伤阈值: " + getInjuryThreshold());
+	    
+	    // *** 新增：调用父类的takeDamage方法，使用统一的逻辑 ***
+	    super.takeDamage(damage);
+	    
+	    System.out.println("🔧 处理后状态: " + currentAnimationState);
+	    System.out.println("🔧 处理后血量: " + hp + "/" + maxHp);
+	    System.out.println("=== 路障僵尸takeDamage调试结束 ===\n");
+	}
 }

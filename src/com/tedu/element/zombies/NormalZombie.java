@@ -12,14 +12,26 @@ import javax.swing.ImageIcon;
 
 /**
  * 普通僵尸类 - 修复死亡动画切换问题，增加死亡动画宽度调整
+ * 新增：dying状态下啃食时保持dying动画
  */
 public class NormalZombie extends Zombie {
     private long lastAttackTime = 0;
     private long lastMoveTime = 0;
     private static final int ATTACK_INTERVAL = 100;
-
+    protected int eatAnimationExtraWidth = -20; // 减小20像素宽度
+    protected int eatAnimationExtraHeight = 0;  // 高度不变
+    protected int eatAnimationXOffset = 10;     // 向右偏移10像素来居中
+    protected int eatAnimationYOffset = 0;      // Y轴偏移
+    
+    // 记录原始尺寸（用于状态切换时恢复）
+    protected int originalWidth = GameConfig.ZOMBIE_WIDTH;
+    protected int originalHeight = GameConfig.ZOMBIE_HEIGHT;
+    protected int originalX;
+    protected int originalY;
+    
     public NormalZombie() {
         super();
+        this.dyingAnimationDuration = Long.MAX_VALUE; // 永不自动切换
         this.dieAnimationDuration = DEFAULT_DIE_ANIMATION_DURATION;
         // 设置死亡动画的额外宽度 - 比正常宽度多50像素
         this.dieAnimationExtraWidth = 70;
@@ -37,20 +49,54 @@ public class NormalZombie extends Zombie {
               GameLoad.imgMap.get("normal_walk"));
         this.lastAttackTime = 0;
         this.lastMoveTime = 0;
+        this.dyingAnimationDuration = Long.MAX_VALUE; // 永不自动切换
         this.dieAnimationDuration = DEFAULT_DIE_ANIMATION_DURATION;
         
         // 设置死亡动画的额外宽度 - 比正常宽度多50像素
         this.dieAnimationExtraWidth = 70;
         // 可选：设置X轴偏移，让动画居中显示
         this.dieAnimationXOffset = -25; // 向左偏移25像素来居中
-        
-        System.out.println("✅ 普通僵尸创建，死亡动画宽度设置为: " + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth));
+    
+        this.eatAnimationExtraWidth = -30;  // 减小30像素宽度
+        this.eatAnimationExtraHeight = 0;   // 高度不变
+        this.eatAnimationXOffset = 15;      // 向右偏移15像素
+        this.eatAnimationYOffset = 0;       // Y轴不偏移
+    
+        // 记录原始位置
+        this.originalX = this.getX();
+        this.originalY = this.getY();
     }
 
     @Override
     public ElementObj createElement(String str) {
         int rowIndex = Integer.parseInt(str.trim());
         return new NormalZombie(rowIndex);
+    }
+    
+    /**
+     * 获取血量百分比
+     */
+    public double getHealthPercentage() {
+        return (double) hp / maxHp;
+    }
+
+    /**
+     * 是否处于重伤状态（半血以下）
+     */
+    public boolean isSeverlyInjured() {
+        return getHealthPercentage() <= 0.5 && hp > 0;
+    }
+
+    /**
+     * 获取血量状态描述
+     */
+    public String getHealthStatus() {
+        double percentage = getHealthPercentage();
+        if (percentage <= 0) return "死亡";
+        else if (percentage <= 0.25) return "濒死";
+        else if (percentage <= 0.5) return "重伤";
+        else if (percentage <= 0.75) return "轻伤";
+        else return "健康";
     }
     
     /**
@@ -129,9 +175,9 @@ public class NormalZombie extends Zombie {
 
     @Override
     protected void checkForPlants() {
-        // 死亡状态下不检查植物
-        if (currentAnimationState == ZombieAnimationState.DIE || isDying()) {
-            return;
+        // *** 修正：只有真正死亡时才不检查植物，重伤状态下仍能检查 ***
+        if (currentAnimationState == ZombieAnimationState.DIE) {
+            return; // 只有死亡状态才不检查植物
         }
 
         if (isEating) {
@@ -151,13 +197,22 @@ public class NormalZombie extends Zombie {
                     this.getX() + this.getW() - 10 >= plant.getX() &&
                     this.getX() < plant.getX() + plant.getW() - 10) {
                     startEating(plant);
-                    System.out.println("🧟 普通僵尸开始啃食植物！行" + rowIndex);
+                    
+                    // *** 新增：根据状态显示不同信息 ***
+                    String stateInfo = "";
+                    if (currentAnimationState == ZombieAnimationState.DYING) {
+                        stateInfo = "（重伤状态）";
+                    }
+                    System.out.println("🧟 普通僵尸开始啃食植物！行" + rowIndex + stateInfo);
                     break;
                 }
             }
         }
     }
 
+    /**
+     * *** 修改：更新图像 - dying状态下啃食时保持dying动画 ***
+     */
     @Override
     protected void updateImage() {
         ImageIcon newIcon = null;
@@ -171,6 +226,16 @@ public class NormalZombie extends Zombie {
             case EAT:
                 iconKey = "normal_eat";
                 newIcon = GameLoad.imgMap.get(iconKey);
+                break;
+            case DYING:
+                // *** 新增：dying状态下始终使用dying动画，即使在啃食 ***
+                iconKey = "normal_dying";
+                newIcon = GameLoad.imgMap.get(iconKey);
+                
+                // 如果正在啃食，添加调试信息
+                if (isEating) {
+                    System.out.println("💔🍽️ 普通僵尸重伤状态下啃食，保持dying动画: " + iconKey);
+                }
                 break;
             case DIE:
                 // 死亡状态下不在这里更新图标，由 handleDeathAnimation 处理
@@ -190,9 +255,9 @@ public class NormalZombie extends Zombie {
 
     @Override
     protected boolean canAttack(long gameTime) {
-        // 死亡状态下不能攻击
-        if (currentAnimationState == ZombieAnimationState.DIE || isDying()) {
-            return false;
+        // *** 修正：只有真正死亡时才不能攻击，重伤状态下仍能攻击 ***
+        if (currentAnimationState == ZombieAnimationState.DIE) {
+            return false; // 只有死亡状态才不能攻击
         }
 
         if (isEating) {
@@ -205,6 +270,11 @@ public class NormalZombie extends Zombie {
     }
 
     @Override
+    protected String getZombieType() {
+        return "normal";
+    }
+    
+    @Override
     public void die() {
         super.die();
         System.out.println("💀 普通僵尸在行" + rowIndex + "被击败。");
@@ -212,8 +282,12 @@ public class NormalZombie extends Zombie {
 
     @Override
     public String toString() {
+        double healthPercentage = getHealthPercentage();
+        String healthStatus = getHealthStatus();
+        
         return "NormalZombie at (" + getX() + "," + getY() + ") row:" + rowIndex +
-               " HP:" + hp + "/" + maxHp + " State:" + currentAnimationState + 
-               " Dying:" + isDying() + " DieWidth:" + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth);
+               " HP:" + hp + "/" + maxHp + " (" + String.format("%.1f%%", healthPercentage * 100) + ")" +
+               " State:" + currentAnimationState + " HealthStatus:" + healthStatus +
+               " Dying:" + isDying() + " HasHead:" + hasHead() + " DieWidth:" + (GameConfig.ZOMBIE_WIDTH + dieAnimationExtraWidth);
     }
 }

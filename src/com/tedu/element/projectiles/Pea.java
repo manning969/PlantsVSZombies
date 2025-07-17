@@ -62,8 +62,9 @@ public class Pea extends ElementObj {
             return;
         }
         
-        // 向右移动
-        this.setX(this.getX() + speed);
+        // 向右移动 - 应用速度倍数
+        int actualSpeed = speed * GameConfig.currentSpeed;
+        this.setX(this.getX() + actualSpeed);
         
         // 检查是否超出屏幕边界
         if (this.getX() > GameConfig.GAME_WIDTH) {

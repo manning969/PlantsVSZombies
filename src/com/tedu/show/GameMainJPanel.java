@@ -5,20 +5,32 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.MouseAdapter;
+import java.awt.image.BufferedImage;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 import java.awt.BasicStroke;
 import java.util.List;
 import java.util.Map;
+
+import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import com.tedu.element.ElementObj;
+import com.tedu.element.effects.ShovelDirtEffect;
+import com.tedu.element.items.Sun;
 import com.tedu.manager.ElementManager;
 import com.tedu.manager.GameElement;
+import com.tedu.manager.GameLoad;
 import com.tedu.manager.ShovelManager;
 import com.tedu.manager.SunManager;
 import com.tedu.manager.WaveManager;
 import com.tedu.utils.GameConfig;
 
 /**
- * 植物大战僵尸游戏主面板 - 完整铲子功能版本 (新增小推车绘制)
+ * 植物大战僵尸游戏主面板
  */
 public class GameMainJPanel extends JPanel implements Runnable {
 
@@ -33,11 +45,79 @@ public class GameMainJPanel extends JPanel implements Runnable {
     // 游戏线程引用（用于调用种植和铲除方法）
     private com.tedu.controller.GameThread gameThread;
 
+    // 新增加速功能相关变量
+    private boolean isMouseOverSpeedButton = false;
+    private long speedNotificationTime = 0;
+    private static final long NOTIFICATION_DURATION = 3000; // 3秒通知
+    
+    // 速度按钮图片
+    private Image speedNormalImg;
+    private Image speedFastImg;
+    
+    // 新增：记录当前选中的植物卡片索引
+    private int selectedPlantIndex = -1;
+
+    // 新增：记录鼠标悬停的草坪格子坐标
+    private int hoverGridX = -1;
+    private int hoverGridY = -1;
     
     public GameMainJPanel() {
         init();
+        // 新增：支持键盘切换植物卡片
+        setFocusable(true);
+        addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent e) {
+                int key = e.getKeyCode();
+                if (key == java.awt.event.KeyEvent.VK_1) {
+                    selectedPlantIndex = 0;
+                    repaint();
+                } else if (key == java.awt.event.KeyEvent.VK_2) {
+                    selectedPlantIndex = 1;
+                    repaint();
+                } else if (key == java.awt.event.KeyEvent.VK_3) {
+                    selectedPlantIndex = 2;
+                    repaint();
+                }
+            }
+        });
+        
+        // 加载速度按钮图片
+        loadSpeedButtonImages();
+    }
+    
+    /**
+     * 加载速度按钮图片
+     */
+    private void loadSpeedButtonImages() {
+        ImageIcon normalIcon = GameLoad.imgMap.get(GameConfig.SPEED_BUTTON_NORMAL);
+        ImageIcon doubleIcon = GameLoad.imgMap.get(GameConfig.SPEED_BUTTON_DOUBLE);
+        
+        if (normalIcon != null) {
+            speedNormalImg = normalIcon.getImage();
+        } else {
+            speedNormalImg = createFallbackSpeedImage("1x");
+        }
+        
+        if (doubleIcon != null) {
+            speedFastImg = doubleIcon.getImage();
+        } else {
+            speedFastImg = createFallbackSpeedImage("2x");
+        }
     }
 
+    private Image createFallbackSpeedImage(String label) {
+        BufferedImage img = new BufferedImage(50, 50, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = img.createGraphics();
+        g2d.setColor(new Color(200, 200, 200, 150));
+        g2d.fillRoundRect(0, 0, 50, 50, 10, 10);
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("Arial", Font.BOLD, 14));
+        g2d.drawString(label, 15, 30);
+        g2d.dispose();
+        return img;
+    }
+    
     public void init() {
         em = ElementManager.getManager();
         sunManager = SunManager.getInstance();
@@ -61,12 +141,157 @@ public class GameMainJPanel extends JPanel implements Runnable {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 requestFocusInWindow();
+                int mx = e.getX();
+                int my = e.getY();
+                
+                if (isClickOnSpeedButton(mx, my)) {
+                    toggleGameSpeed();
+                    return;
+                }
+                
+                // *** 以下是您原来的代码，完全不变 ***
+                int startX = 130;
+                int startY = 10;
+                int cardWidth = 60;
+                int cardHeight = 60;
+                int spacing = 5;
+                
+                for (int i = 0; i < 3; i++) {
+                    int x = startX + i * (cardWidth + spacing);
+                    if (mx >= x && mx <= x + cardWidth && my >= startY && my <= startY + cardHeight) {
+                        selectedPlantIndex = i;
+                        repaint();
+                        break;
+                    }
+                }
+                
+                // 判断是否点击在草坪区域
+                if (mx > GameConfig.GRID_START_X && my > GameConfig.GRID_START_Y) {
+                    int gridX = (mx - GameConfig.GRID_START_X) / GameConfig.GRID_WIDTH;
+                    int gridY = (my - GameConfig.GRID_START_Y) / GameConfig.GRID_HEIGHT;
+                    
+                    // 优先处理铲子模式
+                    if (shovelManager.isShovelActive()) {
+                        boolean used = shovelManager.useShovel(gridX, gridY);
+                        if (used) {
+                            // 移除该格子的植物
+                            List<ElementObj> plants = em.getElementsByKey(GameElement.PLANTS);
+                            ElementObj toRemove = null;
+                            for (ElementObj plant : plants) {
+                                // 判断植物是否在该格子
+                                int px = (plant.getX() - GameConfig.GRID_START_X) / GameConfig.GRID_WIDTH;
+                                int py = (plant.getY() - GameConfig.GRID_START_Y) / GameConfig.GRID_HEIGHT;
+                                if (px == gridX && py == gridY) {
+                                    toRemove = plant;
+                                    break;
+                                }
+                            }
+                            if (toRemove != null) {
+                                plants.remove(toRemove);
+                                
+                                // *** 播放铲除特效 ***
+                                createShovelEffectAtPlant(toRemove);
+                            }
+                            repaint();
+                            return;
+                        }
+                    }
+                    
+                    // 铲子未激活时才进行种植
+                    if (selectedPlantIndex != -1) {
+                        String[] plantTypes = {"peashooter", "sunflower", "wallnut"};
+                        if (sunManager.hasEnoughSun(Integer.parseInt(new String[]{"100","50","50"}[selectedPlantIndex]))) {
+                            em.addElement(
+                                com.tedu.manager.GameLoad.createPlant(plantTypes[selectedPlantIndex], gridX, gridY),
+                                GameElement.PLANTS
+                            );
+                            sunManager.spendSun(Integer.parseInt(new String[]{"100","50","50"}[selectedPlantIndex]));
+                            repaint();
+                        }
+                    }
+                }
                 System.out.println("面板通过鼠标点击获得焦点");
+            }
+        });
+
+
+        // 鼠标移动监听器，添加速度按钮悬停检查
+        addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int mx = e.getX();
+                int my = e.getY();
+                
+                // *** 按钮悬停检查 ***
+                boolean wasHovering = isMouseOverSpeedButton;
+                isMouseOverSpeedButton = isClickOnSpeedButton(mx, my);
+                if (wasHovering != isMouseOverSpeedButton) {
+                    repaint();
+                }
+                
+                // 阳光收集逻辑
+                List<ElementObj> suns = em.getElementsByKey(GameElement.SUNS);
+                for (ElementObj obj : suns) {
+                    if (obj instanceof Sun) {
+                        Sun sun = (Sun) obj;
+                        if (!sun.isCollected() && mx >= sun.getX() && mx <= sun.getX() + sun.getW()
+                                && my >= sun.getY() && my <= sun.getY() + sun.getH()) {
+                            sun.collect();
+                            sunManager.addSun(sun.getValue(), "鼠标收集");
+                        }
+                    }
+                }
+                
+                // 草坪高亮逻辑
+                if (mx > GameConfig.GRID_START_X && my > GameConfig.GRID_START_Y) {
+                    hoverGridX = (mx - GameConfig.GRID_START_X) / GameConfig.GRID_WIDTH;
+                    hoverGridY = (my - GameConfig.GRID_START_Y) / GameConfig.GRID_HEIGHT;
+                } else {
+                    hoverGridX = -1;
+                    hoverGridY = -1;
+                }
+                repaint();
             }
         });
 
         System.out.println("GameMainJPanel 初始化完成，可获得焦点: " + isFocusable());
     }
+    
+    /**
+     * 使用植物的实际位置创建特效（更精确）
+     */
+    private void createShovelEffectAtPlant(ElementObj removedPlant) {
+        try {
+            // 使用植物的实际位置
+            int effectX = removedPlant.getX() + removedPlant.getW() / 2 - 15;
+            int effectY = removedPlant.getY() + removedPlant.getH() / 2 - 15;
+            
+            // 创建铲除特效
+            ShovelDirtEffect effect = new ShovelDirtEffect(effectX, effectY, 30, 30);
+            
+            // 将特效添加到游戏中
+            em.addElement(effect, GameElement.EFFECTS);
+            
+            System.out.println("🌱 在植物位置 (" + effectX + "," + effectY + ") 创建铲除特效");
+            
+        } catch (Exception e) {
+            System.err.println("创建铲除特效失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 检查点击是否在速度按钮上
+     */
+    private boolean isClickOnSpeedButton(int mouseX, int mouseY) {
+        int buttonX = GameConfig.SPEED_BUTTON_X;
+        int buttonY = GameConfig.SPEED_BUTTON_Y;
+        int buttonSize = GameConfig.SPEED_BUTTON_SIZE;
+        
+        return mouseX >= buttonX && mouseX <= buttonX + buttonSize &&
+               mouseY >= buttonY && mouseY <= buttonY + buttonSize;
+    }
+
 
     /**
      * 设置游戏线程引用
@@ -92,8 +317,23 @@ public class GameMainJPanel extends JPanel implements Runnable {
             drawGrid(g2d);
         }
 
+        // 新增：高亮鼠标悬停的草坪格子
+        if (hoverGridX >= 0 && hoverGridY >= 0 && hoverGridX < GameConfig.GRID_COLS && hoverGridY < GameConfig.GRID_ROWS) {
+            int hx = GameConfig.GRID_START_X + hoverGridX * GameConfig.GRID_WIDTH;
+            int hy = GameConfig.GRID_START_Y + hoverGridY * GameConfig.GRID_HEIGHT;
+            g2d.setColor(new Color(255, 255, 0, 80)); // 半透明黄色
+            g2d.fillRect(hx, hy, GameConfig.GRID_WIDTH, GameConfig.GRID_HEIGHT);
+            g2d.setColor(new Color(255, 200, 0, 180));
+            g2d.setStroke(new BasicStroke(2));
+            g2d.drawRect(hx, hy, GameConfig.GRID_WIDTH, GameConfig.GRID_HEIGHT);
+        }
+        
         // 绘制所有游戏元素
         drawGameElements(g2d);
+        
+        // 绘制加速按钮和通知
+        drawSpeedButton(g2d);
+        drawSpeedNotification(g2d);
 
         // 绘制游戏界面UI
         drawGameUI(g2d);
@@ -104,7 +344,88 @@ public class GameMainJPanel extends JPanel implements Runnable {
         }
     }
     
+    /**
+     * 绘制速度按钮
+     */
+    private void drawSpeedButton(Graphics2D g2d) {
+        int x = GameConfig.SPEED_BUTTON_X;
+        int y = GameConfig.SPEED_BUTTON_Y;
+        int size = GameConfig.SPEED_BUTTON_SIZE;
+        
+        Image currentImg = (GameConfig.currentSpeed == GameConfig.NORMAL_SPEED) ? 
+                          speedNormalImg : speedFastImg;
+        
+        if (currentImg != null) {
+            g2d.drawImage(currentImg, x, y, size, size, null);
+            
+            if (isMouseOverSpeedButton) {
+                g2d.setColor(new Color(255, 255, 255, 60));
+                g2d.fillRoundRect(x, y, size, size, 8, 8);
+            }
+        }
+    }
     
+    /**
+     * 图片加载失败时的备用绘制方案
+     */
+    private void drawSpeedButtonFallback(Graphics2D g2d) {
+        int x = GameConfig.SPEED_BUTTON_X;
+        int y = GameConfig.SPEED_BUTTON_Y;
+        int size = GameConfig.SPEED_BUTTON_SIZE;
+ 
+        // 绘制按钮背景
+        g2d.setColor(new Color(200, 200, 200, 150));
+        g2d.fillRoundRect(x, y, size, size, 10, 10);
+ 
+        // 绘制速度图标
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("Arial", Font.BOLD, 14));
+        String speedText = GameConfig.currentSpeed + "x";
+        g2d.drawString(speedText, x + size/4, y + size/2 + 5);
+ 
+        // 悬停效果
+        if (isMouseOverSpeedButton) {
+            g2d.setColor(Color.YELLOW);
+            g2d.setStroke(new BasicStroke(2));
+            g2d.drawRoundRect(x, y, size, size, 10, 10);
+        }
+    }
+    
+    /**
+     * 绘制速度通知
+     */
+    private void drawSpeedNotification(Graphics2D g2d) {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - speedNotificationTime < NOTIFICATION_DURATION) {
+            g2d.setColor(new Color(255, 255, 0, 200));
+            g2d.fillRoundRect(getWidth()/2, 70, 200, 40, 20, 20);
+            
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(FontHelper.getChineseFont(Font.BOLD, 16));
+            String message = "当前速度: " + GameConfig.currentSpeed + "倍速";
+            g2d.drawString(message, getWidth()/2 + 30, 95);
+        }
+    }
+ 
+    /**
+     * 切换游戏速度
+     */
+    private void toggleGameSpeed() {
+        if (GameConfig.currentSpeed == GameConfig.NORMAL_SPEED) {
+            GameConfig.currentSpeed = GameConfig.FAST_SPEED;
+        } else {
+            GameConfig.currentSpeed = GameConfig.NORMAL_SPEED;
+        }
+        
+        speedNotificationTime = System.currentTimeMillis();
+        
+        if (gameThread != null) {
+            gameThread.setGameSpeed(GameConfig.currentSpeed);
+        }
+        
+        System.out.println("速度切换至: " + GameConfig.currentSpeed + "倍速");
+        repaint();
+    }
 
     /**
      * 绘制背景
@@ -228,13 +549,14 @@ public class GameMainJPanel extends JPanel implements Runnable {
         int startX = 130;
         int startY = 10;
         int cardWidth = 60;
-        int cardHeight = 40;
+        int cardHeight = 60;
         int spacing = 5;
 
         String[] plants = {"豌豆射手", "向日葵", "坚果墙"};
         String[] plantTypes = {"peashooter", "sunflower", "wallnut"};
         String[] costs = {"100", "50", "50"};
         String[] keys = {"1", "2", "3"};
+        String[] cardImgKeys = {"peashooter_idle_card", "sunflower_idle_card", "wallnut_full_card"};
 
         for (int i = 0; i < plants.length; i++) {
             int x = startX + i * (cardWidth + spacing);
@@ -242,7 +564,9 @@ public class GameMainJPanel extends JPanel implements Runnable {
             boolean canAfford = sunManager.hasEnoughSun(cost);
 
             // 卡片背景
-            if (canAfford) {
+            if (selectedPlantIndex == i) {
+                g2d.setColor(new Color(255, 215, 0, 220)); // 选中高亮
+            } else if (canAfford) {
                 g2d.setColor(new Color(139, 69, 19, 200));
             } else {
                 g2d.setColor(new Color(100, 100, 100, 200));
@@ -254,14 +578,26 @@ public class GameMainJPanel extends JPanel implements Runnable {
             g2d.setStroke(new BasicStroke(1));
             g2d.drawRoundRect(x, startY, cardWidth, cardHeight, 5, 5);
 
+            // 卡片图片
+            ImageIcon cardIcon = GameLoad.imgMap.get(cardImgKeys[i]);
+            if (cardIcon != null) {
+                int imgW = 32, imgH = 32;
+                int imgX = x + (cardWidth - imgW) / 2 + 6;
+                int imgY = startY + 6;
+                g2d.drawImage(cardIcon.getImage(), imgX, imgY, imgW, imgH, null);
+            }
+            
+            // 植物名称显示在图片下方，且在卡片背景内
+            g2d.setFont(FontHelper.getChineseFont(Font.PLAIN, 9)); // 字体再小一点
+            g2d.setColor(canAfford ? Color.WHITE : Color.LIGHT_GRAY);
+            int nameY = startY + 6 + 32 + 16; // 图片下方留16像素
+            int nameX = x + (cardWidth - g2d.getFontMetrics().stringWidth(plants[i])) / 2 + 12; // 再右移6像素
+            g2d.drawString(plants[i], nameX, nameY);
+         
             // 快捷键提示
             g2d.setColor(canAfford ? Color.WHITE : Color.LIGHT_GRAY);
             g2d.setFont(FontHelper.getChineseFont(Font.BOLD, 10));
             g2d.drawString(keys[i], x + 5, startY + 12);
-
-            // 植物名称 - 使用FontHelper
-            g2d.setFont(FontHelper.getChineseFont(Font.PLAIN, 8));
-            g2d.drawString(plants[i], x + 5, startY + 25);
 
             // 花费
             g2d.setColor(canAfford ? Color.YELLOW : Color.GRAY);
@@ -292,7 +628,7 @@ public class GameMainJPanel extends JPanel implements Runnable {
             int textHeight = fm.getHeight();
             
             // 设置框的尺寸，确保文字能完全显示
-            int boxWidth = Math.max(textWidth + 20, 280); // 至少280像素宽，或根据文字宽度调整
+            int boxWidth = Math.max(textWidth + 20, 220); // 至少210像素宽，或根据文字宽度调整
             int boxHeight = textHeight + 10; // 根据文字高度调整
             int boxX = 10;
             int boxY = 90;
@@ -328,30 +664,32 @@ public class GameMainJPanel extends JPanel implements Runnable {
 
         // 显示波次信息
         String waveText = "波次: " + waveManager.getCurrentWave() + "/" + waveManager.getTotalWaves();
-        g2d.drawString(waveText, getWidth() - 150, 25);
+        g2d.drawString(waveText, getWidth() - 150, 50);
 
         // 显示游戏状态
+        String statusText;
         if (waveManager.isGameWon()) {
             g2d.setColor(Color.GREEN);
             g2d.setFont(FontHelper.getBoldChineseFont(24));
-            g2d.drawString("🎉 获胜！", getWidth() - 150, 50);
+            statusText = "🎉 获胜！";
         } else if (waveManager.isWaveInProgress()) {
             g2d.setColor(Color.RED);
-            g2d.drawString("波次进行中...", getWidth() - 150, 50);
+            statusText = "波次进行中...";
         } else {
             g2d.setColor(Color.CYAN);
-            g2d.drawString("准备下一波", getWidth() - 150, 50);
+            statusText = "准备下一波";
         }
+        g2d.drawString(statusText, getWidth() - 150, 75);
     }
 
     /**
      * 绘制波次进度条 - 修复中文显示
      */
     private void drawWaveProgress(Graphics2D g2d) {
-        int progressX = 10;
-        int progressY = 60;
         int progressWidth = 200;
         int progressHeight = 20;
+        int progressX = getWidth() - progressWidth - 10;;
+        int progressY = 10;
 
         // 进度条背景
         g2d.setColor(new Color(100, 100, 100, 150));

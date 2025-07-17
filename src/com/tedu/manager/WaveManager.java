@@ -59,7 +59,7 @@ public class WaveManager {
         waveConfigs = new ArrayList<>();
         
         // 第1波：简单开始，只有少量普通僵尸
-        waveConfigs.add(new WaveConfig(1, 3, 1, 0, 800, "新手指导"));
+        waveConfigs.add(new WaveConfig(1, 3, 0, 0, 800, "新手指导"));
         
         // 第2-3波：逐渐增加普通僵尸数量
         waveConfigs.add(new WaveConfig(2, 5, 0, 0, 700, "熟悉节奏"));
@@ -178,7 +178,6 @@ public class WaveManager {
         if (currentWave >= totalWaves) {
             gameWon = true;
             currentPhase = GamePhase.GAME_COMPLETE;
-            System.out.println("🎉🎉🎉 恭喜！你成功完成了所有波次！你是真正的植物大战僵尸英雄！");
             return;
         }
         
@@ -194,7 +193,9 @@ public class WaveManager {
             // 波次完成奖励（额外阳光）
             SunManager sunManager = SunManager.getInstance();
             int bonusSun = 25 + currentWave * 5; // 奖励阳光随波次递增
-            sunManager.addSun(bonusSun);
+            
+            // 使用addSunSafely方法，因为这是系统奖励，不需要冷却时间限制
+            sunManager.addSunSafely(bonusSun);
             System.out.println("🌞 波次完成奖励: +" + bonusSun + " 阳光！");
         }
     }

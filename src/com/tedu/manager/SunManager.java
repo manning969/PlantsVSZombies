@@ -75,6 +75,43 @@ public class SunManager {
             nextNaturalSunInterval = generateNextNaturalSunInterval();
         }
     }
+    
+    /**
+     * 支持倍速的更新方法
+     * @param deltaTime 时间增量（毫秒）
+     */
+    public void update(long deltaTime) {
+        // 应用速度倍数来缩放时间
+        long scaledDeltaTime = deltaTime * GameConfig.currentSpeed;
+        
+        // 更新自然阳光生成
+        updateNaturalSunWithDelta(scaledDeltaTime);
+        
+        // 更新收集冷却
+        updateCollectionCooldown(scaledDeltaTime);
+    }
+    
+    /**
+     * 更新收集冷却
+     */
+    private void updateCollectionCooldown(long deltaTime) {
+        // 这里可以添加基于deltaTime的冷却逻辑
+        // 目前保持现有的基于系统时间的逻辑
+    }
+    
+    /**
+     * 使用增量时间更新自然阳光生成
+     */
+    private void updateNaturalSunWithDelta(long deltaTime) {
+        long currentTime = System.currentTimeMillis();
+        
+        // 检查是否需要自然掉落阳光
+        if (currentTime - lastNaturalSunTime >= nextNaturalSunInterval) {
+            generateNaturalSun();
+            lastNaturalSunTime = currentTime;
+            nextNaturalSunInterval = generateNextNaturalSunInterval();
+        }
+    }
 
     /**
      * 自然生成阳光（从天空掉落）
@@ -115,8 +152,13 @@ public class SunManager {
     public void generateSunflowerSun(int plantX, int plantY) {
         System.out.println("向日葵产生阳光！");
 
+        // 检查向日葵是否在底部行
+        int plantRow = (plantY - GameConfig.GRID_START_Y) / GameConfig.GRID_HEIGHT;
+        if (plantRow >= GameConfig.GRID_ROWS - 1) {
+            System.out.println("⚠️ 检测到底部行向日葵，使用特殊阳光生成逻辑");
+        }
+        
         // 使用 Sun 的静态工厂方法创建向日葵阳光
-        // Sun.createSunflowerSun 内部会处理初始位置和速度
         ElementObj sunflowerSun = Sun.createSunflowerSun(plantX, plantY);
 
         if (sunflowerSun != null) {
@@ -126,9 +168,9 @@ public class SunManager {
     }
 
     /**
-     * 增加阳光（玩家收集阳光时调用）
+     * 增加阳光数量并显示来源信息 (重载方法)
      */
-    public boolean addSun(int amount) {
+    public boolean addSun(int amount, String source) {
         long currentTime = System.currentTimeMillis();
 
         // 防止过快收集阳光
@@ -140,8 +182,24 @@ public class SunManager {
         totalSunCollected += amount;
         lastSunCollectionTime = currentTime;
 
-        System.out.println("获得阳光 +" + amount + "，当前阳光: " + currentSun);
+        System.out.println("💰 获得阳光 +" + amount + " 来源: " + source + " (当前: " + currentSun + ")");
         return true;
+    }
+    
+    /**
+     * 安全增加阳光（防止溢出，无冷却）
+     */
+    public void addSunSafely(int amount) {
+        if (amount > 0) {
+            // 防止整数溢出
+            if (Integer.MAX_VALUE - this.currentSun > amount) {
+                this.currentSun += amount;
+            } else {
+                this.currentSun = Integer.MAX_VALUE;
+            }
+            this.totalSunCollected += amount;
+            System.out.println("💰 安全增加阳光: +" + amount + " (当前: " + this.currentSun + ")");
+        }
     }
 
     /**
